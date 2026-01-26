@@ -23,6 +23,5 @@
   ],
   "commands": "./commands",
   "skills": "./skills",
-  "agents": "./agents",
-  "rules": "./rules"
+  "agents": "./agents"
 }
