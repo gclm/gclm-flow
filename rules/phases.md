@@ -166,13 +166,14 @@
 
 ---
 
-### Phase 7: Refactor + Doc - 重构与更新文档
+### Phase 7: Refactor + Security + Review - 重构、安全与审查
 
 **并行执行**:
 
 | Agent | 任务 |
 |:---|:---|
-| worker | 代码重构 - 优化结构、消除重复 |
+| code-simplifier | 代码简化 - 清晰度、一致性、可维护性 |
+| security-guidance | 安全审查 - 漏洞检测、安全最佳实践 |
 | code-reviewer | 代码审查 - 正确性 + 简洁性 |
 
 **重构原则**:
@@ -180,6 +181,7 @@
 - 消除重复
 - 改进命名
 - 优化性能
+- 修复安全隐患
 
 **文档更新询问**:
 ```
@@ -259,7 +261,7 @@ phase_name: "<下一阶段名称>"
 
 - **Phase 2**: 3 个 investigator
 - **Phase 4**: 2 个 architect + 1 个 investigator
-- **Phase 7**: worker + code-reviewer
+- **Phase 7**: code-simplifier + security-guidance + code-reviewer
 
 ### 并行执行格式
 

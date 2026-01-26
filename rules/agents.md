@@ -8,6 +8,8 @@
 | `architect` | 架构设计、方案权衡 | Opus 4.5 | 架构决策、设计方案 |
 | `worker` | 执行明确定义的任务 | Sonnet 4.5 | 代码实现、运行测试 |
 | `tdd-guide` | TDD 流程指导 | Sonnet 4.5 | 新功能、Bug 修复 |
+| `code-simplifier` | 代码简化重构 | Sonnet 4.5 | Phase 7 重构优化 |
+| `security-guidance` | 安全审查 | Sonnet 4.5 | Phase 7 安全检查 |
 | `code-reviewer` | 代码审查 | Sonnet 4.5 | 实现后审查 |
 
 ---
@@ -17,10 +19,12 @@
 ### 无需用户提示即可使用
 
 1. **复杂功能请求** → 使用 `architect` agent
-2. **代码刚编写/修改** → 使用 `code-reviewer` agent
+2. **代码刚编写/修改** → 使用 `code-simplifier` + `code-reviewer` + `security-guidance` agents（Phase 7）
 3. **Bug 修复或新功能** → 使用 `tdd-guide` agent
 4. **架构决策** → 使用 `architect` agent
 5. **代码库调查** → 使用 `investigator` agent
+6. **代码需要简化** → 使用 `code-simplifier` agent
+7. **安全审查** → 使用 `security-guidance` agent
 
 ---
 
@@ -77,7 +81,7 @@ Phase 2: investigator x3 (并行探索)
     ↓
 Phase 4: architect x2 + investigator (并行设计)
     ↓
-Phase 7: worker + code-reviewer (并行重构+审查)
+Phase 7: code-simplifier + security-guidance + code-reviewer (并行重构+安全+审查)
 ```
 
 ---
@@ -137,6 +141,20 @@ Phase 7: worker + code-reviewer (并行重构+审查)
 - 简洁性检查
 - 安全性检查
 - 可行建议
+
+### code-simplifier
+- 保持功能不变
+- 提升可读性
+- 消除重复代码
+- 改进命名和结构
+- 优化复杂度
+
+### security-guidance
+- OWASP Top 10 检查
+- 注入漏洞检测
+- 认证授权审查
+- 敏感数据处理
+- 依赖安全检查
 
 ---
 
