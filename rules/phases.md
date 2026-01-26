@@ -7,14 +7,21 @@
 **目标**: 在任何代码操作前建立上下文理解
 
 **步骤**:
-1. 检查 `llmdoc/index.md` 是否存在
-2. 读取 `llmdoc/index.md` 获取导航
-3. 读取 `llmdoc/overview/*.md` 全部文档
-4. 根据任务读取相关 `llmdoc/architecture/*.md`
+1. 检查 `llmdoc/` 是否存在
+2. **如果存在**:
+   - 读取 `llmdoc/index.md` 获取导航
+   - 读取 `llmdoc/overview/*.md` 全部文档
+   - 根据任务读取相关 `llmdoc/architecture/*.md`
+3. **如果不存在**:
+   - 使用 `investigator` agent 扫描代码库
+   - 自动生成 `llmdoc/index.md`
+   - 自动生成 `llmdoc/overview/` 基础文档
+   - 然后读取生成的文档
 
 **输出**: 上下文摘要（关键文件、模块依赖、设计模式）
 
 **强制**: 此阶段不可跳过
+**自动化**: llmdoc 不存在时自动生成，无需用户确认
 
 ---
 
@@ -204,11 +211,22 @@ phases:
 
 ### 状态更新
 
-每个阶段完成后更新：
+**自动化**: 状态文件更新**自动进行**，无需用户确认
+
+每个阶段完成后自动更新：
 ```yaml
 current_phase: <下一阶段编号>
 phase_name: "<下一阶段名称>"
 ```
+
+**自动化原因**:
+- 状态文件是内部元数据，不是代码
+- 更新是确定性的（阶段完成 → 状态更新）
+- 不影响代码质量或安全性
+
+**仍需授权的场景**:
+- Phase 4: Architecture 设计方案审批
+- Phase 7: 文档更新询问
 
 ---
 

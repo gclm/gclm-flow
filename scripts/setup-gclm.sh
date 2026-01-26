@@ -121,12 +121,15 @@ $prompt
 ## Notes
 - 按进度更新 frontmatter 的 current_phase/phase_name
 - 完成时在最终输出中包含 frontmatter completion_promise
+- 状态更新自动进行，无需用户确认
+- llmdoc 不存在时自动生成
 
 ## Key Constraints
-1. Phase 0: 强制读取 llmdoc
+1. Phase 0: 强制读取 llmdoc，不存在时自动生成
 2. Phase 3: 不可跳过，必须澄清
 3. Phase 5: TDD Red，测试必须先失败
 4. Phase 7: 必须询问是否更新文档
+5. 状态更新: 自动化，无需授权
 EOF
 
 echo "✅ Initialized: $state_file"
