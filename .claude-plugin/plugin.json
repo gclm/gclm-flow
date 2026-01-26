@@ -1,0 +1,28 @@
+{
+  "name": "gclm",
+  "description": "融合开发工作流 - TDD-First + llmdoc 优先 + 多 Agent 并行。8 阶段流程：llmdoc 读取 → Discovery → Exploration → Clarification → Architecture → TDD Red → TDD Green → Refactor+Doc → Summary",
+  "version": "1.0.0",
+  "author": {
+    "name": "gclm",
+    "url": "https://github.com/gclm"
+  },
+  "homepage": "https://github.com/gclm/gclm-flow",
+  "repository": "https://github.com/gclm/gclm-flow",
+  "license": "MIT",
+  "keywords": [
+    "claude-code",
+    "workflow",
+    "tdd",
+    "llmdoc",
+    "agents",
+    "skills",
+    "commands",
+    "test-driven-development",
+    "documentation-driven",
+    "parallel-execution"
+  ],
+  "commands": "./commands",
+  "skills": "./skills",
+  "agents": "./agents",
+  "rules": "./rules"
+}
