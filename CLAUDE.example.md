@@ -1,9 +1,3 @@
-# CLAUDE.md - gclm-flow 配置
-
-> 融合开发工作流配置 - 将此内容添加到 `~/.claude/CLAUDE.md`
-
----
-
 ## 核心哲学
 
 **TDD-First + llmdoc 优先 + 多 Agent 并行**
