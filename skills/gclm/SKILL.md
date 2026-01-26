@@ -127,8 +127,12 @@ Identify testing patterns and conventions.
 EOF
 ```
 
-### Phase 4: Architecture (2 个并行方案)
+### Phase 4: Architecture (2 个并行方案 + 1 个测试策略)
+
+**重要**: 必须等待 agents 完成并展示方案后，再询问用户选择
+
 ```bash
+# 步骤 1: 并行启动 3 个 agents
 codeagent-wrapper --parallel <<'EOF'
 ---TASK---
 id: p4_minimal
@@ -143,8 +147,27 @@ agent: gclm-architect
 workdir: .
 ---CONTENT---
 Propose pragmatic-clean architecture.
+
+---TASK---
+id: p4_test_strategy
+agent: gclm-investigator
+workdir: .
+---CONTENT---
+Analyze testing strategy for this change.
 EOF
+
+# 步骤 2: 等待完成后，使用 TaskOutput 获取每个 agent 的输出
+TaskOutput("p4_minimal", block=true)
+TaskOutput("p4_pragmatic", block=true)
+TaskOutput("p4_test_strategy", block=true)
+
+# 步骤 3: 格式化展示方案给用户
+# (将 3 个方案以清晰的格式展示)
+
+# 步骤 4: 等待用户阅读后，使用 AskUserQuestion 询问选择
 ```
+
+**关于 llmdoc**: Phase 4 不会自动生成/更新 llmdoc，文档更新在 Phase 7 询问用户后进行
 
 ## Agent 体系
 

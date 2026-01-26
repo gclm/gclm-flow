@@ -87,7 +87,25 @@
 | architect (pragmatic) | 务实整洁方案 - 引入测试友好接缝 |
 | investigator | 测试策略分析 |
 
-使用 `AskUserQuestion` 选择方案
+**工作流程** (重要：顺序执行，不可跳过)：
+
+1. **等待 agents 完成** - 等待 3 个并行任务全部完成
+2. **收集并展示方案** - 使用 `TaskOutput` 获取每个 agent 的完整输出
+3. **格式化展示** - 将 3 个方案以清晰的格式展示给用户：
+   ```markdown
+   ## Phase 4: Architecture 方案对比
+
+   ### 方案 A: 最小改动方案
+   <agent 输出内容>
+
+   ### 方案 B: 务实整洁方案
+   <agent 输出内容>
+
+   ### 测试策略分析
+   <agent 输出内容>
+   ```
+4. **等待用户阅读** - 给用户时间阅读和比较方案
+5. **使用 `AskUserQuestion` 选择** - 用户阅读后再询问选择
 
 **显式审批门**: "Approve starting implementation?"
 
@@ -96,6 +114,11 @@
 - 组件设计
 - 数据流
 - 构建序列
+
+**关于 llmdoc**:
+- Phase 4 **不会**自动生成/更新 llmdoc
+- llmdoc 更新在 **Phase 7** 询问用户确认后才会进行
+- Phase 4 的设计文档仅供参考，不直接写入 llmdoc/
 
 ---
 
