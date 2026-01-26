@@ -7,14 +7,21 @@
 **目标**: 在任何代码操作前建立上下文理解
 
 **步骤**:
-1. 检查 `llmdoc/index.md` 是否存在
-2. 读取 `llmdoc/index.md` 获取导航
-3. 读取 `llmdoc/overview/*.md` 全部文档
-4. 根据任务读取相关 `llmdoc/architecture/*.md`
+1. 检查 `llmdoc/` 是否存在
+2. **如果存在**:
+   - 读取 `llmdoc/index.md` 获取导航
+   - 读取 `llmdoc/overview/*.md` 全部文档
+   - 根据任务读取相关 `llmdoc/architecture/*.md`
+3. **如果不存在**:
+   - 使用 `investigator` agent 扫描代码库
+   - 自动生成 `llmdoc/index.md`
+   - 自动生成 `llmdoc/overview/` 基础文档
+   - 然后读取生成的文档
 
 **输出**: 上下文摘要（关键文件、模块依赖、设计模式）
 
 **强制**: 此阶段不可跳过
+**自动化**: llmdoc 不存在时自动生成，无需用户确认
 
 ---
 
@@ -80,7 +87,25 @@
 | architect (pragmatic) | 务实整洁方案 - 引入测试友好接缝 |
 | investigator | 测试策略分析 |
 
-使用 `AskUserQuestion` 选择方案
+**工作流程** (重要：顺序执行，不可跳过)：
+
+1. **等待 agents 完成** - 等待 3 个并行任务全部完成
+2. **收集并展示方案** - 使用 `TaskOutput` 获取每个 agent 的完整输出
+3. **格式化展示** - 将 3 个方案以清晰的格式展示给用户：
+   ```markdown
+   ## Phase 4: Architecture 方案对比
+
+   ### 方案 A: 最小改动方案
+   <agent 输出内容>
+
+   ### 方案 B: 务实整洁方案
+   <agent 输出内容>
+
+   ### 测试策略分析
+   <agent 输出内容>
+   ```
+4. **等待用户阅读** - 给用户时间阅读和比较方案
+5. **使用 `AskUserQuestion` 选择** - 用户阅读后再询问选择
 
 **显式审批门**: "Approve starting implementation?"
 
@@ -89,6 +114,11 @@
 - 组件设计
 - 数据流
 - 构建序列
+
+**关于 llmdoc**:
+- Phase 4 **不会**自动生成/更新 llmdoc
+- llmdoc 更新在 **Phase 7** 询问用户确认后才会进行
+- Phase 4 的设计文档仅供参考，不直接写入 llmdoc/
 
 ---
 
@@ -204,11 +234,22 @@ phases:
 
 ### 状态更新
 
-每个阶段完成后更新：
+**自动化**: 状态文件更新**自动进行**，无需用户确认
+
+每个阶段完成后自动更新：
 ```yaml
 current_phase: <下一阶段编号>
 phase_name: "<下一阶段名称>"
 ```
+
+**自动化原因**:
+- 状态文件是内部元数据，不是代码
+- 更新是确定性的（阶段完成 → 状态更新）
+- 不影响代码质量或安全性
+
+**仍需授权的场景**:
+- Phase 4: Architecture 设计方案审批
+- Phase 7: 文档更新询问
 
 ---
 

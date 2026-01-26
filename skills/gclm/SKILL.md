@@ -40,21 +40,31 @@ allowed-tools: ["Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)"]
 
 ## 硬约束
 
-1. **Phase 0 强制**: 必须优先读取 llmdoc
+1. **Phase 0 强制**: 必须优先读取 llmdoc，不存在时自动生成
 2. **Phase 3 不可跳过**: 必须澄清所有疑问
 3. **Phase 5 TDD 强制**: 必须先写测试
 4. **并行优先**: 能并行的任务必须并行执行
-5. **状态持久化**: 每个阶段后更新状态文件
+5. **状态持久化**: 每个阶段后自动更新状态文件（无需确认）
 6. **选项式编程**: 使用 AskUserQuestion 展示选项
 7. **文档更新询问**: Phase 7 必须询问
 
 ## 循环状态管理
 
-每个阶段后，更新 `.claude/gclm.{task_id}.local.md` frontmatter：
+**自动化**: 每个阶段后自动更新 `.claude/gclm.{task_id}.local.md` frontmatter，无需用户确认：
+
 ```yaml
 current_phase: <下一阶段编号>
 phase_name: "<下一阶段名称>"
 ```
+
+**状态更新的自动化原因**:
+- 状态文件是内部元数据，不是代码
+- 更新是确定性的（阶段完成 → 状态更新）
+- 不影响代码质量或安全性
+
+**仍需授权的场景**:
+- Phase 4: Architecture 设计方案审批
+- Phase 7: 文档更新询问
 
 当所有 8 阶段完成，输出完成信号：
 ```
@@ -62,6 +72,32 @@ phase_name: "<下一阶段名称>"
 ```
 
 提前退出：在状态文件中设置 `active: false`。
+
+---
+
+## Phase 0: llmdoc 优先读取
+
+### 自动化流程
+
+1. **检查 llmdoc/ 是否存在**
+   - 存在 → 直接读取
+   - 不存在 → 自动生成
+
+2. **自动生成 llmdoc（无需确认）**
+   - 使用 `investigator` agent 扫描代码库
+   - 生成 `llmdoc/index.md`
+   - 生成 `llmdoc/overview/` 基础文档（project.md, tech-stack.md, structure.md）
+
+3. **继续读取流程**
+   - 读取 `llmdoc/index.md`
+   - 读取 `llmdoc/overview/*.md` 全部
+   - 根据任务读取 `llmdoc/architecture/*.md`
+
+### 生成约束
+
+- **最小化生成**: 只生成基础文档
+- **增量完善**: 后续可在 Phase 7 补充
+- **保持简洁**: 避免过度生成
 
 ## 并行执行示例
 
@@ -91,8 +127,12 @@ Identify testing patterns and conventions.
 EOF
 ```
 
-### Phase 4: Architecture (2 个并行方案)
+### Phase 4: Architecture (2 个并行方案 + 1 个测试策略)
+
+**重要**: 必须等待 agents 完成并展示方案后，再询问用户选择
+
 ```bash
+# 步骤 1: 并行启动 3 个 agents
 codeagent-wrapper --parallel <<'EOF'
 ---TASK---
 id: p4_minimal
@@ -107,8 +147,27 @@ agent: gclm-architect
 workdir: .
 ---CONTENT---
 Propose pragmatic-clean architecture.
+
+---TASK---
+id: p4_test_strategy
+agent: gclm-investigator
+workdir: .
+---CONTENT---
+Analyze testing strategy for this change.
 EOF
+
+# 步骤 2: 等待完成后，使用 TaskOutput 获取每个 agent 的输出
+TaskOutput("p4_minimal", block=true)
+TaskOutput("p4_pragmatic", block=true)
+TaskOutput("p4_test_strategy", block=true)
+
+# 步骤 3: 格式化展示方案给用户
+# (将 3 个方案以清晰的格式展示)
+
+# 步骤 4: 等待用户阅读后，使用 AskUserQuestion 询问选择
 ```
+
+**关于 llmdoc**: Phase 4 不会自动生成/更新 llmdoc，文档更新在 Phase 7 询问用户后进行
 
 ## Agent 体系
 
