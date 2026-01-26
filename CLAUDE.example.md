@@ -23,9 +23,15 @@
 **任何代码操作前必须：**
 
 1. 检查 `llmdoc/` 是否存在
-2. 读取 `llmdoc/index.md`
-3. 读取 `llmdoc/overview/*.md` (全部)
-4. 根据任务读取相关 `llmdoc/architecture/*.md`
+2. **如果存在**:
+   - 读取 `llmdoc/index.md`
+   - 读取 `llmdoc/overview/*.md` (全部)
+   - 根据任务读取相关 `llmdoc/architecture/*.md`
+3. **如果不存在**:
+   - **自动生成 llmdoc** (无需用户确认)
+   - 使用 `investigator` agent 扫描代码库
+   - 生成基础文档 (`index.md` + `overview/`)
+   - 然后继续读取流程
 
 ### llmdoc 结构
 
@@ -58,12 +64,13 @@ llmdoc/
 
 ## 关键约束
 
-1. **llmdoc 优先**: Phase 0 强制执行
+1. **llmdoc 优先**: Phase 0 强制执行，不存在时自动生成
 2. **TDD 强制**: Phase 5 必须先写测试
 3. **Phase 3 不可跳过**: 必须澄清所有疑问
 4. **并行优先**: 能并行的任务必须并行执行
 5. **选项式编程**: 使用 AskUserQuestion 展示选项
 6. **文档更新询问**: Phase 7 必须询问
+7. **状态自动化**: 状态文件更新自动进行，无需确认
 
 ---
 
