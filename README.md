@@ -1,10 +1,10 @@
-# gclm-flow - 融合开发工作流插件
+# gclm-flow - 智能分流工作流插件
 
-> 融合 myclaude/do、cc-plugin/Context Floor、everything-claude-code/TDD 的最佳实践
+> SpecDD + TDD + llmdoc 优先 + ace-tool + 多 Agent 并行
 
 <div align="center">
 
-**TDD-First + llmdoc 优先 + 多 Agent 并行**
+**智能分流工作流 - 自动判断任务类型，选择最优开发流程**
 
 </div>
 
@@ -12,29 +12,79 @@
 
 ## 核心哲学
 
-1. **TDD-First**: 坚持测试驱动开发，实现代码前先写测试
+1. **SpecDD + TDD**: 复杂模块走 SpecDD，简单修改走 TDD
 2. **llmdoc 优先**: 任何代码操作前必须先读取文档
-3. **需求先讨论**: Discovery → Exploration → Clarification
-4. **Parallel Execution**: 尽可能并行执行任务
+3. **ace-tool 集成**: 智能代码搜索，自动上下文理解
+4. **智能分流**: Phase 1 后自动判断任务复杂度
 5. **Security-First**: 安全永远第一
 
 ---
 
-## 8 阶段融合工作流
+## 智能分流工作流
+
+### 自动分类逻辑
+
+```
+                    Phase 1: Discovery
+                            ↓
+                   智能分类 (自动判断)
+                            ↓
+              ┌──────────┼──────────┐
+              │          │          │
+              ↓          ↓          ↓
+        简单任务    中等任务    复杂任务
+        (Bug修复)   (用户确认)   (新功能)
+              │          │          │
+              │          ↓          │
+              │    ┌─────────────┐   │
+              │    │  询问用户    │   │
+              │    │  选择流程    │   │
+              │    └──────┬───────┘   │
+              │           │          │
+              ↓           ↓          ↓
+        简单流程    简单流程    完整流程
+```
+
+### 分类信号
+
+| 信号 | 简单任务 | 复杂任务 |
+|:---|:---|:---|
+| **关键词** | bug, 修复, error, fix, 问题, 调试 | 功能, 模块, 新, 开发, 重构, 系统, 设计 |
+| **文件数** | <= 2 | >= 5 |
+| **风险** | low | any |
+
+---
+
+## 8.5 阶段融合工作流
+
+### 简单流程 (SIMPLE) - Bug 修复、小修改
+
+| 阶段 | 名称 | Agent | 跳过 |
+|:---|:---|:---|:---:|
+| 0 | llmdoc + ace-tool | 主 Agent | - |
+| 1 | Discovery | `investigator` | - |
+| 3 | Clarification | 主 Agent + AskUser | 2, 4, 4.5 |
+| 5 | TDD Red | `tdd-guide` | - |
+| 6 | TDD Green | `worker` | - |
+| 7 | Refactor + Security + Review | `code-simplifier` + `security-guidance` + `code-reviewer` | - |
+| 8 | Summary | `investigator` | - |
+
+### 完整流程 (COMPLEX) - 新功能、模块开发
 
 | 阶段 | 名称 | Agent | 并行 |
 |:---|:---|:---|:---:|
-| 0 | llmdoc 优先读取 | 主 Agent | - |
+| 0 | llmdoc + ace-tool | 主 Agent | - |
 | 1 | Discovery | `investigator` | - |
 | 2 | Exploration | `investigator` x3 | 是 |
 | 3 | Clarification | 主 Agent + AskUser | - |
 | 4 | Architecture | `architect` x2 + `investigator` | 是 |
+| **4.5** | **Spec** | `architect` + `ace-tool` | **-** |
 | 5 | TDD Red | `tdd-guide` | - |
 | 6 | TDD Green | `worker` | - |
-| 7 | Refactor + Doc | `worker` + `code-reviewer` | 是 |
+| 7 | Refactor + Security + Review | `code-simplifier` + `security-guidance` + `code-reviewer` | 是 |
 | 8 | Summary | `investigator` | - |
 
-> 📖 **详细流程说明**: 每个阶段的具体步骤、状态管理、并行执行模式等，请参阅 [WORKFLOW.md](docs/WORKFLOW.md)
+> 📖 **详细流程说明**: 每个阶段的具体步骤、智能分类逻辑、并行执行模式等，请参阅 [WORKFLOW.md](docs/WORKFLOW.md)
 
 ---
 
@@ -79,7 +129,8 @@ bash scripts/install.sh
 | 行为 | 效果 |
 |:---|:---|
 | **文档优先** | Agent 在任何操作前先阅读 `llmdoc/` |
-| **智能调研** | 使用 `investigator` agent 而非通用探索 |
+| **智能分流** | Phase 1 后自动判断任务复杂度 |
+| **代码搜索** | ace-tool 自动提供代码上下文 |
 | **选项式编程** | 不会直接下结论；通过问题呈现选择 |
 | **文档维护提示** | 编码后询问是否更新文档 |
 
@@ -87,7 +138,7 @@ bash scripts/install.sh
 
 | Skill | 触发词 | 描述 |
 |:---|:---|:---|
-| `/gclm` | "实现功能"、"开发新功能" | 启动完整工作流 |
+| `/gclm` | "实现功能"、"开发新功能" | 启动智能分流工作流 |
 | `/investigate` | "什么是"、"X怎么工作"、"分析" | 快速代码库调查 |
 | `/tdd` | "写测试"、"TDD" | 测试驱动开发 |
 
@@ -96,28 +147,27 @@ bash scripts/install.sh
 ## 融合设计
 
 ```
-myclaude/do (7阶段框架) + cc-plugin/llmdoc (Context 解决方案) + everything/TDD (实现方法)
+SpecDD (规范驱动) + TDD (测试驱动) + ace-tool (代码搜索) + llmdoc (文档优先)
 ```
 
-### 来源分析
+### 关键改进
 
-| 来源 | 核心特点 | 约束 |
-|:---|:---|:---|
-| **myclaude/do** | 7阶段结构化流程、状态持久化、强制澄清 | Phase 3 不可跳过、Phase 5 需审批 |
-| **cc-plugin/Context Floor** | llmdoc 文档系统、SubAgent RAG | 文档优先读取 |
-| **everything-claude-code/TDD** | Red-Green-Refactor、80%覆盖率 | 测试必须先失败 |
+1. **SpecDD 集成**: 复杂模块先写 Spec，再写测试
+2. **ace-tool 集成**: 替代 qmd，专为代码设计
+3. **智能分流**: 自动判断任务类型，选择最优流程
 
 ---
 
 ## 关键约束
 
 1. **llmdoc 优先**: Phase 0 强制执行
-2. **TDD 强制**: Phase 5 必须先写测试
+2. **智能分流**: Phase 1 后自动判断任务类型
 3. **Phase 3 不可跳过**: 必须澄清所有疑问
-4. **并行优先**: 能并行的任务必须并行执行
-5. **状态持久化**: 中途退出可恢复
-6. **选项式编程**: 使用 AskUserQuestion 展示选项
-7. **文档更新询问**: Phase 7 必须询问
+4. **Phase 5 TDD 强制**: 必须先写测试
+5. **并行优先**: 能并行的任务必须并行执行
+6. **状态持久化**: 中途退出可恢复
+7. **选项式编程**: 使用 AskUserQuestion 展示选项
+8. **文档更新询问**: Phase 7 必须询问
 
 ---
 
@@ -127,6 +177,8 @@ myclaude/do (7阶段框架) + cc-plugin/llmdoc (Context 解决方案) + everythi
 gclm-flow/
 ├── README.md                      # 本文件
 ├── CLAUDE.example.md              # 示例配置
+├── .claude-plugin/                 # 插件市场配置
+│   └── marketplace.json
 ├── agents/                        # Agent 定义
 │   ├── investigator.md
 │   ├── architect.md
@@ -139,10 +191,13 @@ gclm-flow/
 │   └── tdd.md
 ├── skills/                        # Skill 定义
 │   ├── gclm/
-│   │   └── SKILL.md
+│   │   ├── SKILL.md
+│   │   └── .mcp.json
 │   ├── investigate/
 │   │   └── SKILL.md
-│   └── tdd-workflow/
+│   ├── tdd-workflow/
+│   │   └── SKILL.md
+│   └── file-naming-helper/
 │       └── SKILL.md
 ├── rules/                         # 规则文件
 │   ├── phases.md
@@ -150,7 +205,11 @@ gclm-flow/
 │   ├── tdd.md
 │   └── agents.md
 ├── scripts/                       # 脚本
-│   └── setup-gclm.sh
+│   ├── setup-gclm.sh
+│   └── setup-qmd.sh
+├── hooks/                         # Hooks
+│   ├── stop-gclm-loop.sh
+│   └── setup-qmd-mcp.sh
 └── docs/                          # 文档
     └── WORKFLOW.md
 ```
@@ -165,7 +224,17 @@ gclm-flow/
 | `architect` | 架构设计、方案权衡 | Opus 4.5 |
 | `worker` | 执行明确定义的任务 | Sonnet 4.5 |
 | `tdd-guide` | TDD 流程指导 | Sonnet 4.5 |
+| `code-simplifier` | 代码简化重构 | Sonnet 4.5 |
+| `security-guidance` | 安全审查 | Sonnet 4.5 |
 | `code-reviewer` | 代码审查 | Sonnet 4.5 |
+
+---
+
+## 外部工具集成
+
+| 工具 | 用途 | 安装 |
+|:---|:---|:---|
+| **ace-tool** | 代码搜索、上下文增强 | `npm install -g ace-tool@latest` |
 
 ---
 
@@ -181,10 +250,10 @@ gclm-flow/
 
 ## 成本与效果
 
-**诚实评估**: 这套方案大概用 **1.5 倍的价钱**完成了从 85 分到 90 分的效果提升。
+**诚实评估**: 智能分流工作流用 **1.5 倍的价钱**完成了从 85 分到 92 分的效果提升。
 
-- 简单项目：效果一般
-- 复杂项目：收益显著
+- 简单项目：快速 TDD，效率提升
+- 复杂项目：SpecDD 确保 quality，收益显著
 - 生产级代码库（10万+ 行）：效果出色
 
 ---

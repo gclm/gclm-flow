@@ -1,14 +1,14 @@
 ---
 name: gclm
-description: "融合工作流 - TDD-First + llmdoc 优先 + 多 Agent 并行。8 阶段流程：llmdoc 读取 → Discovery → Exploration → Clarification → Architecture → TDD Red → TDD Green → Refactor+Doc → Summary"
+description: "智能分流工作流 - SpecDD + TDD + llmdoc 优先 + ace-tool + 多 Agent 并行。自动判断任务类型：简单任务走 TDD，复杂任务走 SpecDD (Architecture + Spec + TDD)"
 allowed-tools: ["Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)"]
 ---
 
-# gclm-flow 融合开发工作流 Skill
+# gclm-flow 智能分流工作流 Skill
 
 ## 核心哲学
 
-**TDD-First + llmdoc 优先 + 多 Agent 并行**
+**SpecDD + TDD + llmdoc 优先 + ace-tool + 多 Agent 并行 + 智能分流**
 
 ## 循环初始化 (必需)
 
@@ -24,15 +24,120 @@ allowed-tools: ["Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)"]
 - `max_phases: 8`
 - `completion_promise: "<promise>GCLM_WORKFLOW_COMPLETE</promise>"`
 
-## 8 阶段工作流
+## 智能分流工作流
+
+### 工作流程图
+
+```
+                    ┌─────────────────────────────────────┐
+                    │         Phase 1: Discovery           │
+                    │    (分析需求、预估规模、复杂度)       │
+                    └──────────────────┬──────────────────┘
+                                       │
+                        ┌──────────────┴──────────────┐
+                        │    智能分类 (自动判断)        │
+                        └──────────────┬──────────────┘
+                                       │
+              ┌────────────────────────┼────────────────────────┐
+              │                        │                        │
+              ↓                        ↓                        ↓
+    ┌─────────────────┐      ┌─────────────────┐      ┌─────────────────┐
+    │   简单任务       │      │   中等任务       │      │   复杂任务       │
+    │ (Bug/小修改)     │      │ (需要确认)       │      │ (新功能/模块)    │
+    └────────┬────────┘      └────────┬────────┘      └────────┬────────┘
+             │                        │                        │
+             │                        ▼                        │
+             │              ┌──────────────────┐              │
+             │              │ 询问用户确认    │              │
+             │              │ 走哪个流程？     │              │
+             │              └────────┬─────────┘              │
+             │                       │                        │
+             │           ┌───────────┴───────────┐           │
+             │           │                       │           │
+             │           ↓                       ↓           │
+             │    ┌─────────────┐        ┌─────────────┐   │
+             │    │   简单流程   │        │   完整流程   │   │
+             │    └──────┬──────┘        └──────┬──────┘   │
+             │           │                      │          │
+             └───────────┼──────────────────────┼──────────┘
+                         │                      │
+                         ▼                      ▼
+              ┌─────────────────────┐   ┌─────────────────────┐
+              │  Phase 3: Clarify    │   │ Phase 2: Explore   │
+              │  (确认问题)          │   │ (并行探索 x3)       │
+              └──────────┬──────────┘   └──────────┬──────────┘
+                         │                      │
+                         ▼                      ▼
+              ┌─────────────────────┐   ┌─────────────────────┐
+              │  Phase 5: TDD Red    │   │Phase 3: Clarify     │
+              │  (写测试)            │   │(澄清疑问)           │
+              └──────────┬──────────┘   └──────────┬──────────┘
+                         │                      │
+                         ▼                      ▼
+              ┌─────────────────────┐   ┌─────────────────────┐
+              │ Phase 6: TDD Green   │   │Phase 4: Architecture│
+              │ (写实现)             │   │(架构设计 x2 + inv)  │
+              └──────────┬──────────┘   └──────────┬──────────┘
+                         │                      │
+                         ▼                      ▼
+              ┌─────────────────────┐   ┌─────────────────────┐
+              │ Phase 7: Refactor    │   │Phase 4.5: Spec     │
+              │ (重构+审查)          │   │(编写规范文档)       │
+              └──────────┬──────────┘   └──────────┬──────────┘
+                         │                      │
+                         ▼                      ▼
+              ┌─────────────────────┐   ┌─────────────────────┐
+              │ Phase 8: Summary    │   │ Phase 5: TDD Red    │
+              │ (完成总结)          │   │ (基于 Spec 写测试)  │
+              └─────────────────────┘   └──────────┬──────────┘
+                                                   │
+                                                   ▼
+                                    ┌─────────────────────┐
+                                    │ Phase 6: TDD Green   │
+                                    │ (实现代码)           │
+                                    └──────────┬──────────┘
+                                               │
+                                               ▼
+                                    ┌─────────────────────┐
+                                    │ Phase 7: Refactor    │
+                                    │ (重构+安全+审查)     │
+                                    └──────────┬──────────┘
+                                               │
+                                               ▼
+                                    ┌─────────────────────┐
+                                    │ Phase 8: Summary    │
+                                    │ (完成总结)           │
+                                    └─────────────────────┘
+```
+
+### 简单流程 (SIMPLE)
+
+**适用**: Bug 修复、小修改、单文件变更
+
+| 阶段 | 名称 | Agent | 跳过 |
+|:---|:---|:---|:---:|
+| 0 | llmdoc 优先读取 | 主 Agent | - |
+| 1 | Discovery | `investigator` | - |
+| 3 | Clarification | 主 Agent + AskUser | Phase 2, 4, 4.5 |
+| 5 | TDD Red | `tdd-guide` | - |
+| 6 | TDD Green | `worker` | - |
+| 7 | Refactor + Security + Review | `code-simplifier` + `security-guidance` + `code-reviewer` | - |
+| 8 | Summary | `investigator` | - |
+
+**跳过的阶段**: Phase 2 (Exploration), Phase 4 (Architecture), Phase 4.5 (Spec)
+
+### 完整流程 (COMPLEX)
+
+**适用**: 新功能、模块开发、重构
 
 | 阶段 | 名称 | Agent | 并行 |
 |:---|:---|:---|:---:|
-| 0 | llmdoc 优先读取 | 主 Agent | - |
+| 0 | llmdoc 优先读取 + ace-tool | 主 Agent | - |
 | 1 | Discovery | `investigator` | - |
 | 2 | Exploration | `investigator` x3 | 是 |
 | 3 | Clarification | 主 Agent + AskUser | - |
 | 4 | Architecture | `architect` x2 + `investigator` | 是 |
+| **4.5** | **Spec** | `architect` + `ace-tool` | **-** |
 | 5 | TDD Red | `tdd-guide` | - |
 | 6 | TDD Green | `worker` | - |
 | 7 | Refactor + Security + Review | `code-simplifier` + `security-guidance` + `code-reviewer` | 是 |
@@ -41,12 +146,13 @@ allowed-tools: ["Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)"]
 ## 硬约束
 
 1. **Phase 0 强制**: 必须优先读取 llmdoc，不存在时自动生成
-2. **Phase 3 不可跳过**: 必须澄清所有疑问
-3. **Phase 5 TDD 强制**: 必须先写测试
-4. **并行优先**: 能并行的任务必须并行执行
-5. **状态持久化**: 每个阶段后自动更新状态文件（无需确认）
-6. **选项式编程**: 使用 AskUserQuestion 展示选项
-7. **文档更新询问**: Phase 7 必须询问
+2. **智能分流**: Phase 1 后自动判断任务类型
+3. **Phase 3 不可跳过**: 必须澄清所有疑问
+4. **Phase 5 TDD 强制**: 必须先写测试
+5. **并行优先**: 能并行的任务必须并行执行
+6. **状态持久化**: 每个阶段后自动更新状态文件（无需确认）
+7. **选项式编程**: 使用 AskUserQuestion 展示选项
+8. **文档更新询问**: Phase 7 必须询问
 
 ## 循环状态管理
 
@@ -75,24 +181,45 @@ phase_name: "<下一阶段名称>"
 
 ---
 
-## Phase 0: llmdoc 优先读取
+## Phase 0: llmdoc 优先读取 + ace-tool 搜索
 
 ### 自动化流程
 
-1. **检查 llmdoc/ 是否存在**
+1. **检查 ace-tool 是否可用**
+   - 运行 `ace-tool --help` 检查是否安装
+   - 不可用 → 提示安装：`npm install -g ace-tool@latest`
+
+2. **检查 llmdoc/ 是否存在**
    - 存在 → 直接读取
    - 不存在 → **自动生成（不需要用户确认，直接执行）**
 
-2. **自动生成 llmdoc（NON-NEGOTIABLE - 无需确认）**
+3. **自动生成 llmdoc（NON-NEGOTIABLE - 无需确认）**
    - 使用 `investigator` agent 扫描代码库
    - 生成 `llmdoc/index.md`
    - 生成 `llmdoc/overview/` 基础文档（project.md, tech-stack.md, structure.md）
    - **注意：这是初始化步骤，自动执行，不要询问用户**
 
-3. **继续读取流程**
+4. **继续读取流程**
    - 读取 `llmdoc/index.md`
    - 读取 `llmdoc/overview/*.md` 全部
    - 根据任务读取 `llmdoc/architecture/*.md`
+
+5. **ace-tool 搜索增强（可选）**
+   - 当需要查找特定代码时使用 ace-tool MCP 的 `search_context` 工具
+   - 支持自然语言代码搜索
+   - 自动从 IDE 获取项目路径
+
+### ace-tool 工作原理
+
+**重要**: ace-tool 是 MCP 服务器，自动为当前项目索引代码：
+
+```bash
+# 安装 ace-tool
+npm install -g ace-tool@latest
+
+# 配置 MCP (Claude Code 自动检测)
+# .mcp.json 已在 gclm-flow 中配置
+```
 
 ### 生成约束
 
@@ -217,3 +344,39 @@ TaskOutput("p4_test_strategy", block=true)
 4. 完成时输出 `<promise>GCLM_WORKFLOW_COMPLETE</promise>`
 
 手动退出：在状态文件中设置 `active` 为 `false`。
+
+---
+
+## ace-tool 快速参考
+
+### 安装
+```bash
+# 全局安装 ace-tool
+npm install -g ace-tool@latest
+```
+
+### MCP 工具
+Claude Code 可直接调用 ace-tool 提供的 MCP 工具：
+- `search_context` - 自然语言代码搜索
+- `enhance_prompt` - 增强用户提示词
+
+### 使用示例
+```javascript
+// Claude Code 自动调用，无需手动命令
+// 搜索 "用户认证相关的代码"
+search_context({
+  query: "Where is the user authentication function?"
+})
+
+// 搜索 "错误处理模式"
+search_context({
+  query: "How are API errors handled in this codebase?"
+})
+```
+
+### 项目支持
+ace-tool 自动为每个项目创建 `.ace-tool/` 索引，支持：
+- 编程语言: Python, JavaScript, TypeScript, Java, Go, Rust, C/C++, C#, PHP, Swift, Kotlin, Scala
+- 配置文件: .md, .txt, .json, .yaml, .toml, .xml, .ini
+- Web 技术: .html, .css, .scss, .vue, .svelte
+- 脚本: .sql, .sh, .bash, .ps1, .bat
