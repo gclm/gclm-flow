@@ -4,6 +4,7 @@ description: 精确执行明确定义的任务。实现代码、运行测试、�
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: sonnet
 color: blue
+permission: auto
 ---
 
 # gclm-flow Worker

@@ -1,11 +1,18 @@
 {
   "mcpServers": {
-    "augment-context-engine": {
+    "auggie": {
       "command": "auggie",
       "args": ["--mcp"],
       "env": {
         "AUGMENT_API_TOKEN": "",
         "AUGMENT_API_URL": "https://acemcp.heroman.wtf/relay/"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@microsoft/playwright-mcp"],
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "true"
       }
     }
   }
