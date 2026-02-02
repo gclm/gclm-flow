@@ -1,6 +1,6 @@
 # gclm-flow - 智能分流工作流插件
 
-> SpecDD + TDD + llmdoc 优先 + ace-tool + 多 Agent 并行
+> SpecDD + TDD + llmdoc 优先 + auggie + 多 Agent 并行
 
 <div align="center">
 
@@ -14,7 +14,7 @@
 
 1. **SpecDD + TDD**: 复杂模块走 SpecDD，简单修改走 TDD
 2. **llmdoc 优先**: 任何代码操作前必须先读取文档
-3. **ace-tool 集成**: 智能代码搜索，自动上下文理解
+3. **auggie 集成**: 智能代码搜索，自动上下文理解
 4. **智能分流**: Phase 1 后自动判断任务复杂度
 5. **Security-First**: 安全永远第一
 
@@ -234,7 +234,7 @@ gclm-flow/
 
 | 工具 | 用途 | 安装 |
 |:---|:---|:---|
-| **ace-tool** | 代码搜索、上下文增强 | `npm install -g ace-tool@latest` |
+| **auggie** | 代码搜索、上下文增强 | `npm install -g @augmentcode/auggie@prerelease` |
 
 ---
 

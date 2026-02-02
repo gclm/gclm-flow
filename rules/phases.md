@@ -98,14 +98,14 @@ def classify_task(discovery_output, user_request):
 
 ## 阶段详细规则
 
-### Phase 0: llmdoc 优先读取 + ace-tool (NON-NEGOTIABLE)
+### Phase 0: llmdoc 优先读取 + auggie (NON-NEGOTIABLE)
 
 **目标**: 在任何代码操作前建立上下文理解
 
 **步骤**:
-1. **检查 ace-tool 是否可用**
-   - 运行 `ace-tool --help` 检查是否安装
-   - 不可用 → 提示安装：`npm install -g ace-tool@latest`
+1. **检查 auggie 是否可用**
+   - 运行 `auggie --help` 检查是否安装
+   - 不可用 → 提示安装：`npm install -g @augmentcode/auggie@prerelease`
 2. 检查 `llmdoc/` 是否存在
 3. **如果存在**:
    - 读取 `llmdoc/index.md` 获取导航
@@ -116,21 +116,21 @@ def classify_task(discovery_output, user_request):
    - 自动生成 `llmdoc/index.md`
    - 自动生成 `llmdoc/overview/` 基础文档
    - 然后读取生成的文档
-5. **ace-tool 搜索增强（可选）**
-   - 需要查找特定代码时使用 ace-tool MCP 的 `search_context`
+5. **auggie 搜索增强（可选）**
+   - 需要查找特定代码时使用 auggie MCP 的上下文搜索
 
 **输出**: 上下文摘要（关键文件、模块依赖、设计模式）
 
 **强制**: 此阶段不可跳过
 **自动化**: llmdoc 不存在时自动生成，无需用户确认
 
-**ace-tool 使用**:
+**auggie 使用**:
 ```bash
 # 安装
-npm install -g ace-tool@latest
+npm install -g @augmentcode/auggie@prerelease
 
 # MCP 配置自动生效
-# Claude Code 可直接调用 search_context 工具
+# Claude Code 可直接调用上下文搜索工具
 ```
 
 ---
@@ -181,7 +181,7 @@ complex_signals:
 
 **并行执行**: 必须在单个响应中使用多个 Task 调用
 
-**ace-tool 集成**: 使用 `search_context` 加速代码搜索
+**auggie 集成**: 使用语义搜索加速代码探索
 
 ---
 
@@ -241,7 +241,7 @@ complex_signals:
 
 **目标**: 为复杂模块编写详细的规范文档
 
-**Agent**: `architect` + `ace-tool`
+**Agent**: `architect` + `auggie`
 
 **输入**: Phase 4 的设计方案
 
@@ -282,7 +282,7 @@ complex_signals:
 ### 6.3 可维护性
 ```
 
-**ace-tool 集成**: 使用 `search_context` 查找相关代码示例
+**auggie 集成**: 使用语义搜索查找相关代码示例
 
 ---
 

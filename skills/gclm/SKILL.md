@@ -8,7 +8,7 @@ allowed-tools: ["Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)"]
 
 ## 核心哲学
 
-**SpecDD + TDD + llmdoc 优先 + ace-tool + 多 Agent 并行 + 智能分流**
+**SpecDD + TDD + llmdoc 优先 + auggie + 多 Agent 并行 + 智能分流**
 
 ## 循环初始化 (必需)
 
@@ -181,13 +181,13 @@ phase_name: "<下一阶段名称>"
 
 ---
 
-## Phase 0: llmdoc 优先读取 + ace-tool 搜索
+## Phase 0: llmdoc 优先读取 + auggie 搜索
 
 ### 自动化流程
 
-1. **检查 ace-tool 是否可用**
-   - 运行 `ace-tool --help` 检查是否安装
-   - 不可用 → 提示安装：`npm install -g ace-tool@latest`
+1. **检查 auggie 是否可用**
+   - 运行 `auggie --help` 检查是否安装
+   - 不可用 → 提示安装：`npm install -g @augmentcode/auggie@prerelease`
 
 2. **检查 llmdoc/ 是否存在**
    - 存在 → 直接读取
@@ -204,21 +204,24 @@ phase_name: "<下一阶段名称>"
    - 读取 `llmdoc/overview/*.md` 全部
    - 根据任务读取 `llmdoc/architecture/*.md`
 
-5. **ace-tool 搜索增强（可选）**
-   - 当需要查找特定代码时使用 ace-tool MCP 的 `search_context` 工具
+5. **auggie 搜索增强（可选）**
+   - 当需要查找特定代码时使用 auggie MCP 的上下文搜索工具
    - 支持自然语言代码搜索
    - 自动从 IDE 获取项目路径
 
-### ace-tool 工作原理
+### auggie 工作原理
 
-**重要**: ace-tool 是 MCP 服务器，自动为当前项目索引代码：
+**重要**: auggie 是 MCP 服务器，提供高级代码上下文搜索：
 
 ```bash
-# 安装 ace-tool
-npm install -g ace-tool@latest
+# 安装 auggie
+npm install -g @augmentcode/auggie@prerelease
 
-# 配置 MCP (Claude Code 自动检测)
-# .mcp.json 已在 gclm-flow 中配置
+# 配置环境变量（可选）
+# AUGMENT_API_TOKEN: API 令牌
+# AUGMENT_API_URL: API 端点
+
+# MCP 配置已在 gclm-flow 的 .mcp.json 中配置
 ```
 
 ### 生成约束
@@ -347,36 +350,33 @@ TaskOutput("p4_test_strategy", block=true)
 
 ---
 
-## ace-tool 快速参考
+## auggie 快速参考
 
 ### 安装
 ```bash
-# 全局安装 ace-tool
-npm install -g ace-tool@latest
+# 全局安装 auggie
+npm install -g @augmentcode/auggie@prerelease
 ```
 
 ### MCP 工具
-Claude Code 可直接调用 ace-tool 提供的 MCP 工具：
-- `search_context` - 自然语言代码搜索
-- `enhance_prompt` - 增强用户提示词
+Claude Code 可直接调用 auggie 提供的 MCP 工具进行：
+- 自然语言代码搜索
+- 代码上下文增强
+- 语义代码理解
 
 ### 使用示例
 ```javascript
 // Claude Code 自动调用，无需手动命令
 // 搜索 "用户认证相关的代码"
-search_context({
-  query: "Where is the user authentication function?"
-})
+// auggie 会自动理解意图并返回相关代码片段和上下文
+```
 
-// 搜索 "错误处理模式"
-search_context({
-  query: "How are API errors handled in this codebase?"
-})
+### 配置
+```bash
+# 环境变量（可选）
+export AUGMENT_API_TOKEN="your-token"
+export AUGMENT_API_URL="https://acemcp.heroman.wtf/relay/"
 ```
 
 ### 项目支持
-ace-tool 自动为每个项目创建 `.ace-tool/` 索引，支持：
-- 编程语言: Python, JavaScript, TypeScript, Java, Go, Rust, C/C++, C#, PHP, Swift, Kotlin, Scala
-- 配置文件: .md, .txt, .json, .yaml, .toml, .xml, .ini
-- Web 技术: .html, .css, .scss, .vue, .svelte
-- 脚本: .sql, .sh, .bash, .ps1, .bat
+auggie 支持多种编程语言和文件类型，提供智能代码搜索和上下文理解。
