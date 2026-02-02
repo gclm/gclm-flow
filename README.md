@@ -118,6 +118,23 @@ bash scripts/install.sh
 
 **完成！** 配置完成后，所有行为自动激活。
 
+### 通知功能配置（可选）
+
+安装后，可以配置 macOS 系统通知：
+
+```bash
+# 1. 安装 terminal-notifier
+brew install terminal-notifier
+
+# 2. 安装 ClaudeNotifier.app
+# 将 ClaudeNotifier.app 放到 /Applications/ 目录
+
+# 3. 重新运行安装脚本（会自动配置 hooks）
+bash scripts/install.sh
+```
+
+安装后，当 Claude Code 需要你的操作时，会收到系统通知。
+
 ---
 
 ## 工作原理
@@ -133,6 +150,7 @@ bash scripts/install.sh
 | **代码搜索** | auggie 自动提供代码上下文 |
 | **选项式编程** | 不会直接下结论；通过问题呈现选择 |
 | **文档维护提示** | 编码后询问是否更新文档 |
+| **系统通知** | 需要操作时发送 macOS 通知 |
 
 ### 可用 Skills（自动触发）
 
@@ -205,11 +223,11 @@ gclm-flow/
 │   ├── tdd.md
 │   └── agents.md
 ├── scripts/                       # 脚本
-│   ├── setup-gclm.sh
-│   └── setup-qmd.sh
+│   └── install.sh                 # 安装脚本
 ├── hooks/                         # Hooks
-│   ├── stop-gclm-loop.sh
-│   └── setup-qmd-mcp.sh
+│   ├── notify.sh                  # 通知脚本
+│   └── stop-gclm-loop.sh          # 停止循环 hook
+├── settings-hooks.example.json    # Hooks 配置示例
 └── docs/                          # 文档
     └── WORKFLOW.md
 ```
