@@ -116,12 +116,12 @@ def classify_task(discovery_output, user_request):
    - 自动生成 `llmdoc/index.md`
    - 自动生成 `llmdoc/overview/` 基础文档
    - 然后读取生成的文档
-5. **auggie 搜索增强（可选）**
-   - 需要查找特定代码时使用 auggie MCP 的上下文搜索
+5. **auggie 搜索增强（必需）**
+   - 使用 auggie MCP 的上下文搜索工具查找特定代码
 
 **输出**: 上下文摘要（关键文件、模块依赖、设计模式）
 
-**强制**: 此阶段不可跳过
+**强制**: 此阶段不可跳过（llmdoc 和 auggie 都是必需依赖）
 **自动化**: llmdoc 不存在时自动生成，无需用户确认
 
 **auggie 使用**:

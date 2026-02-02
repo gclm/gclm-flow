@@ -130,7 +130,7 @@ bash scripts/install.sh
 |:---|:---|
 | **文档优先** | Agent 在任何操作前先阅读 `llmdoc/` |
 | **智能分流** | Phase 1 后自动判断任务复杂度 |
-| **代码搜索** | ace-tool 自动提供代码上下文 |
+| **代码搜索** | auggie 自动提供代码上下文 |
 | **选项式编程** | 不会直接下结论；通过问题呈现选择 |
 | **文档维护提示** | 编码后询问是否更新文档 |
 
@@ -232,9 +232,9 @@ gclm-flow/
 
 ## 外部工具集成
 
-| 工具 | 用途 | 安装 |
-|:---|:---|:---|
-| **auggie** | 代码搜索、上下文增强 | `npm install -g @augmentcode/auggie@prerelease` |
+| 工具 | 用途 | 安装 | 必需 |
+|:---|:---|:---|:---:|
+| **auggie** | 代码搜索、上下文增强 | `npm install -g @augmentcode/auggie@prerelease` | ✅ |
 
 ---
 
