@@ -161,7 +161,6 @@ bash scripts/install.sh
 | `/gclm` | "实现功能"、"开发新功能" | 启动智能分流工作流 |
 | `/investigate` | "什么是"、"X怎么工作"、"分析" | 快速代码库调查 |
 | `/tdd` | "写测试"、"TDD" | 测试驱动开发 |
-| `/browser` | "打开网页"、"浏览器测试" | 浏览器自动化 |
 | `/llmdoc-update` | "更新文档"、"同步文档" | 更新 llmdoc 文档 |
 | `/spec-gen` | "生成规范"、"编写 Spec" | 生成 Phase 4.5 Spec 文档 |
 
@@ -259,7 +258,6 @@ gclm-flow/
 |:---|:---|:---|:---:|
 | **auggie** | 代码搜索、上下文增强 | `npm install -g @augmentcode/auggie@prerelease` | ✅ |
 | **Playwright MCP** | 浏览器自动化 | `npm install -g @microsoft/playwright-mcp` | - |
-| **terminal-notifier** | macOS 系统通知 | `brew install terminal-notifier` | - |
 
 ---
 
