@@ -35,7 +35,7 @@ allowed-tools: ["Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)"]
 | 4 | Architecture | `architect` x2 + `investigator` | 是 |
 | 5 | TDD Red | `tdd-guide` | - |
 | 6 | TDD Green | `worker` | - |
-| 7 | Refactor + Doc | `worker` + `code-reviewer` | 是 |
+| 7 | Refactor + Security + Review | `code-simplifier` + `security-guidance` + `code-reviewer` | 是 |
 | 8 | Summary | `investigator` | - |
 
 ## 硬约束
@@ -81,12 +81,13 @@ phase_name: "<下一阶段名称>"
 
 1. **检查 llmdoc/ 是否存在**
    - 存在 → 直接读取
-   - 不存在 → 自动生成
+   - 不存在 → **自动生成（不需要用户确认，直接执行）**
 
-2. **自动生成 llmdoc（无需确认）**
+2. **自动生成 llmdoc（NON-NEGOTIABLE - 无需确认）**
    - 使用 `investigator` agent 扫描代码库
    - 生成 `llmdoc/index.md`
    - 生成 `llmdoc/overview/` 基础文档（project.md, tech-stack.md, structure.md）
+   - **注意：这是初始化步骤，自动执行，不要询问用户**
 
 3. **继续读取流程**
    - 读取 `llmdoc/index.md`
@@ -98,6 +99,7 @@ phase_name: "<下一阶段名称>"
 - **最小化生成**: 只生成基础文档
 - **增量完善**: 后续可在 Phase 7 补充
 - **保持简洁**: 避免过度生成
+- **直接执行**: llmdoc 不存在时自动生成，**不询问用户**
 
 ## 并行执行示例
 
@@ -177,6 +179,8 @@ TaskOutput("p4_test_strategy", block=true)
 | `architect` | 架构设计、方案权衡 | Opus 4.5 |
 | `worker` | 执行明确定义的任务 | Sonnet 4.5 |
 | `tdd-guide` | TDD 流程指导 | Sonnet 4.5 |
+| `code-simplifier` | 代码简化重构 | Sonnet 4.5 |
+| `security-guidance` | 安全审查 | Sonnet 4.5 |
 | `code-reviewer` | 代码审查 | Sonnet 4.5 |
 
 ## 上下文包模板
@@ -191,8 +195,10 @@ TaskOutput("p4_test_strategy", block=true)
 - Investigator output: <paste or "None">
 - Architect output: <paste or "None">
 - Worker output: <paste or "None">
-- Code-reviewer output: <paste or "None">
 - Tdd-guide output: <paste or "None">
+- Code-simplifier output: <paste or "None">
+- Security-guidance output: <paste or "None">
+- Code-reviewer output: <paste or "None">
 - Open questions: <list or "None">
 
 ## Current Task
