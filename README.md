@@ -257,7 +257,8 @@ gclm-flow/
 | 工具 | 用途 | 安装 | 必需 |
 |:---|:---|:---|:---:|
 | **auggie** | 代码搜索、上下文增强 | `npm install -g @augmentcode/auggie@prerelease` | ✅ |
-| **Playwright MCP** | 浏览器自动化 | `npm install -g @microsoft/playwright-mcp` | - |
+| **Chrome DevTools MCP** | Chrome 调试、性能分析 | `npm install -g chrome-devtools-mcp` | - |
+| **Playwright MCP** | 跨浏览器测试 | `npm install -g @playwright/mcp` | - |
 
 ---
 

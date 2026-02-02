@@ -10,9 +10,16 @@
     },
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@microsoft/playwright-mcp"],
+      "args": ["-y", "@playwright/mcp"],
       "env": {
         "PLAYWRIGHT_HEADLESS": "true"
+      }
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp"],
+      "env": {
+        "HEADLESS": "false"
       }
     }
   }
