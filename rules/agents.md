@@ -2,15 +2,23 @@
 
 ## 可用 Agents
 
-| Agent | 职责 | 模型 | 何时使用 |
+### gclm-flow 自定义 Agents
+
+| Agent | 职责 | 模型 | 定义文件 |
 |:---|:---|:---|:---|
-| `investigator` | 探索、分析、总结 | Haiku 4.5 | 代码库调查、快速分析 |
-| `architect` | 架构设计、方案权衡 | Opus 4.5 | 架构决策、设计方案 |
-| `worker` | 执行明确定义的任务 | Sonnet 4.5 | 代码实现、运行测试 |
-| `tdd-guide` | TDD 流程指导 | Sonnet 4.5 | 新功能、Bug 修复 |
-| `code-simplifier` | 代码简化重构 | Sonnet 4.5 | Phase 7 重构优化 |
-| `security-guidance` | 安全审查 | Sonnet 4.5 | Phase 7 安全检查 |
-| `code-reviewer` | 代码审查 | Sonnet 4.5 | 实现后审查 |
+| `investigator` | 探索、分析、总结 | Haiku 4.5 | `agents/investigator.md` |
+| `architect` | 架构设计、方案权衡 | Opus 4.5 | `agents/architect.md` |
+| `worker` | 执行明确定义的任务 | Sonnet 4.5 | `agents/worker.md` |
+| `tdd-guide` | TDD 流程指导 | Sonnet 4.5 | `agents/tdd-guide.md` |
+| `code-reviewer` | 代码审查 | Sonnet 4.5 | `agents/code-reviewer.md` |
+
+### Claude Code 官方插件
+
+| Agent | 插件名 | 职责 | 何时使用 |
+|:---|:---|:---|:---|
+| `code-simplifier` | `code-simplifier@claude-plugins-official` | 代码简化重构 | Phase 7 重构优化 |
+| `security-guidance` | `security-guidance@claude-plugins-official` | 安全审查 | Phase 7 安全检查 |
+| `commit-commands` | `commit-commands@claude-plugins-official` | Git 操作 | Commit/Push/PR |
 
 ---
 

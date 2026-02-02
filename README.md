@@ -161,19 +161,21 @@ bash scripts/install.sh
 | `/gclm` | "实现功能"、"开发新功能" | 启动智能分流工作流 |
 | `/investigate` | "什么是"、"X怎么工作"、"分析" | 快速代码库调查 |
 | `/tdd` | "写测试"、"TDD" | 测试驱动开发 |
+| `/llmdoc-update` | "更新文档"、"同步文档" | 更新 llmdoc 文档 |
+| `/spec-gen` | "生成规范"、"编写 Spec" | 生成 Phase 4.5 Spec 文档 |
 
 ---
 
 ## 融合设计
 
 ```
-SpecDD (规范驱动) + TDD (测试驱动) + ace-tool (代码搜索) + llmdoc (文档优先)
+SpecDD (规范驱动) + TDD (测试驱动) + auggie (代码搜索) + llmdoc (文档优先)
 ```
 
 ### 关键改进
 
 1. **SpecDD 集成**: 复杂模块先写 Spec，再写测试
-2. **ace-tool 集成**: 替代 qmd，专为代码设计
+2. **auggie 集成**: 专为代码设计的语义搜索工具
 3. **智能分流**: 自动判断任务类型，选择最优流程
 
 ---
