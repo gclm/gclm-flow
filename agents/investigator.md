@@ -4,6 +4,7 @@ description: 快速、无状态的代码库调查 Agent。用于 "什么是"、"
 tools: ["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"]
 model: haiku
 color: yellow
+permission: auto
 ---
 
 # gclm-flow Investigator

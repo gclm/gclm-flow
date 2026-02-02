@@ -4,6 +4,7 @@ description: 测试驱动开发专家，强制执行先写测试方法论。编�
 tools: ["Read", "Write", "Edit", "Bash", "Grep"]
 model: sonnet
 color: purple
+permission: auto
 ---
 
 # gclm-flow TDD Guide

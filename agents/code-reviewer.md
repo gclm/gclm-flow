@@ -4,6 +4,7 @@ description: 代码审查专家，检查正确性、简洁性、安全性和约�
 tools: ["Read", "Grep", "Glob"]
 model: sonnet
 color: red
+permission: auto
 ---
 
 # gclm-flow Code Reviewer
