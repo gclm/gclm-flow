@@ -89,12 +89,9 @@ cp -R "$PROJECT_DIR/rules/"*.md "$CLAUDE_DIR/rules/" 2>/dev/null || true
 
 # 复制 hooks
 print_color "$BLUE" "安装 hooks..."
-mkdir -p "$CLAUDE_DIR/hooks/setup"
 cp -R "$PROJECT_DIR/hooks/"*.sh "$CLAUDE_DIR/hooks/" 2>/dev/null || true
-# Setup hooks 需要放到 setup/ 目录
-cp -R "$PROJECT_DIR/hooks/setup-"*.sh "$CLAUDE_DIR/hooks/setup/" 2>/dev/null || true
+# 设置可执行权限
 chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
-chmod +x "$CLAUDE_DIR/hooks/setup/"*.sh 2>/dev/null || true
 
 # 检查 auggie（推荐依赖）
 print_color "$BLUE" "检查 auggie..."
@@ -129,7 +126,7 @@ fi
 
 # 配置 MCP 服务器和 hooks 到全局 settings.json
 print_color "$BLUE" "配置 settings.json..."
-SETTINGS_EXAMPLE="$PLUGIN_DIR/settings.example.json"
+SETTINGS_EXAMPLE="$PROJECT_DIR/settings.example.json"
 SETTINGS_FILE="$CLAUDE_DIR/settings.json"
 
 if [ -f "$SETTINGS_EXAMPLE" ]; then

@@ -2,7 +2,7 @@
 name: gclm
 description: "智能分流工作流 - SpecDD + TDD + Document-First + llmdoc 优先 + 分层回退代码搜索 + 多 Agent 并行。自动判断任务类型：DOCUMENT / CODE_SIMPLE / CODE_COMPLEX"
 allowed-tools: [
-  "Bash(~/.claude/skills/gclm/setup-gclm.sh:*)",
+  "Bash(~/.claude/skills/gclm/setup-gclm.sh --export *)",
   "Bash(mkdir -p .claude*)",
   "Bash(ls -la .claude/*)",
   "Read(*)",
@@ -63,14 +63,26 @@ grep "pattern" file.txt
 
 当通过 `/gclm <task>` 触发时，**首先**初始化循环状态：
 
+### 步骤 1: 调用脚本获取元数据
+
 ```bash
-"${SKILL_DIR}/setup-gclm.sh" "<task description>"
+# 脚本返回 JSON，包含 task_id, workflow_type, state_file_content 等
+~/.claude/skills/gclm/setup-gclm.sh --export "<task description>"
 ```
 
-这会创建 `.claude/gclm.{task_id}.local.md` 包含：
+### 步骤 2: 使用 Write 工具创建状态文件
+
+**重要**: 必须使用 `Write` 工具创建状态文件，禁止使用 shell 的 `cat >`
+
+```
+Write(".claude/gclm.{task_id}.local.md", <state_file_content from script>)
+```
+
+状态文件包含：
 - `active: true`
 - `current_phase: 0`
 - `max_phases: 9`
+- `workflow_type`: 自动检测 (DOCUMENT / CODE_SIMPLE / CODE_COMPLEX)
 - `completion_promise: "<promise>GCLM_WORKFLOW_COMPLETE</promise>"`
 
 ## 智能分流工作流

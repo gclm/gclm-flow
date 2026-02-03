@@ -10,9 +10,18 @@ Usage: setup-gclm.sh [options] PROMPT...
   .claude/gclm.{task_id}.local.md
 
 Options:
-  --max-phases N            默认: 9
-  --completion-promise STR  默认: <promise>GCLM_WORKFLOW_COMPLETE</promise>
-  -h, --help                显示此帮助
+  --export                 输出 JSON 元数据而非创建文件（供 LLM Write 工具使用）
+  --max-phases N           默认: 9
+  --completion-promise STR 默认: <promise>GCLM_WORKFLOW_COMPLETE</promise>
+  --workflow TYPE          手动指定工作流类型 (DOCUMENT|CODE_SIMPLE|CODE_COMPLEX)
+  -h, --help               显示此帮助
+
+Examples:
+  # 标准模式：直接创建状态文件
+  setup-gclm.sh "实现用户登录功能"
+
+  # 导出模式：输出 JSON 供 LLM 使用
+  setup-gclm.sh --export "实现用户登录功能"
 EOF
 }
 
@@ -112,6 +121,7 @@ get_phases_for_workflow() {
 max_phases=9
 completion_promise="<promise>GCLM_WORKFLOW_COMPLETE</promise>"
 workflow_type=""  # 允许手动指定
+export_mode=false  # 导出模式：输出 JSON 而非创建文件
 declare -a prompt_parts=()
 
 # 检测代码搜索方法（分层回退）
@@ -128,6 +138,10 @@ while [ $# -gt 0 ]; do
 		-h|--help)
 			usage
 			exit 0
+			;;
+		--export)
+			export_mode=true
+			shift
 			;;
 		--max-phases)
 			[ $# -ge 2 ] || die "--max-phases 需要值"
@@ -254,7 +268,8 @@ for p in "${phases[@]}"; do
 "
 done
 
-cat > "$state_file" << EOF
+# 生成状态文件完整内容
+state_file_content=$(cat <<EOF
 ---
 active: true
 current_phase: 0
@@ -278,7 +293,6 @@ $code_search_desc
 
 ## Phases for $detected_workflow
 $phases_table
-
 ## Workflow Phases Summary (双语)
 | Phase | Name / 名称 | DOCUMENT | CODE_SIMPLE | CODE_COMPLEX |
 |:---:|:---|:---:|:---:|:---:|
@@ -308,6 +322,31 @@ $phases_table
 5. CODE_COMPLEX: 全部 9 阶段 + SpecDD
 6. 状态更新: 自动化，无需授权
 EOF
+)
+
+# 导出模式：输出 JSON 供 LLM 使用
+if [ "$export_mode" = true ]; then
+	# 输出 JSON 格式的元数据
+	cat <<EOF
+{
+  "task_id": "$task_id",
+  "state_file": "$state_file",
+  "workflow_type": "$detected_workflow",
+  "workflow_desc": "$workflow_desc",
+  "code_search_method": "$code_search_method",
+  "code_search_desc": $(echo "$code_search_desc" | jq -Rs . 2>/dev/null || echo '"(see standard mode output)"'),
+  "phase_name": "$phase_name",
+  "current_phase": 0,
+  "max_phases": $max_phases,
+  "completion_promise": "$completion_promise",
+  "prompt": $(echo "$prompt" | jq -Rs . 2>/dev/null || echo '"(use escape if needed)"'),
+  "state_file_content": $(echo "$state_file_content" | jq -Rs . 2>/dev/null || echo '"(too large for JSON)"')
+}
+EOF
+	exit 0
+fi
+
+cat > "$state_file" <<< "$state_file_content"
 
 echo "✅ Initialized: $state_file"
 echo "task_id: $task_id"
