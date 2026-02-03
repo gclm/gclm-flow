@@ -4,3 +4,8 @@
 ClaudeNotifier.app/
 *.local.json
 settings.local.json
+
+# 项目生成目录（不提交到 git）
+/llmdoc/
+/scripts/
+/docs/
