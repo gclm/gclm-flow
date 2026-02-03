@@ -1,5 +1,5 @@
 ---
-name: gclm-investigator
+name: investigator
 description: 快速、无状态的代码库调查 Agent。优先使用 auggie 语义搜索增强，回退到 llmdoc + Grep。输出直接返回对话。
 tools: ["Read", "Glob", "Grep", "Bash", "WebSearch", "WebFetch"]
 model: haiku

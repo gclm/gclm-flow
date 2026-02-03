@@ -149,16 +149,25 @@ flowchart LR
 
 **适用**: 文档编写、方案设计、架构设计、需求分析
 
-| 阶段 | 名称 / Name | Agent | 说明 |
-|:---|:---|:---|:---|
-| 0 | llmdoc Reading / 读取文档 | 主 Agent | 读取项目文档 |
-| 1 | Discovery / 需求发现 | `investigator` | 理解需求 |
-| 2 | Exploration / 探索研究 | `investigator` x3 | 研究相关内容/示例 |
-| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | **充分沟通需求 + 确认/调整工作流类型** |
-| 6 | Draft / 起草文档 | 主 Agent | **起草文档/方案** |
-| 7 | Refine / 完善内容 | 主 Agent | **完善内容** |
-| 8 | Review / 质量审查 | `code-reviewer` | 审查质量 |
-| 9 | Summary / 完成总结 | `investigator` | 完成总结 |
+| 阶段 | 名称 / Name | Agent | 调用方式 | 说明 |
+|:---|:---|:---|:---|:---|
+| 0 | llmdoc Reading / 读取文档 | 主 Agent | - | 读取项目文档 |
+| 1 | Discovery / 需求发现 | 自然语言: investigator | - | 理解需求（auggie优先策略）|
+| 2 | Exploration / 探索研究 | `Explore` x3 | Task 并行 | 研究相关内容/示例 |
+| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - | **充分沟通需求 + 确认/调整工作流类型** |
+| 6 | Draft / 起草文档 | 主 Agent | - | **起草文档/方案** |
+| 7 | Refine / 完善内容 | 主 Agent | - | **完善内容** |
+| 8 | Review / 质量审查 | `general-purpose` | Task | 审查质量 |
+| 9 | Summary / 完成总结 | 自然语言: investigator | - | 完成总结 |
+
+**调用方式说明**:
+- **Task 并行**: 使用 `Task(subagent_type="...", ...)` 真正并行
+- **自然语言**: "使用 investigator 子代理..."（遵循 auggie/llmdoc 策略）
+
+**设计权衡**:
+- Phase 1 使用 `investigator`：保持 auggie → llmdoc → Grep 分层回退策略
+- Phase 2 使用 `Explore` 并行：牺牲一些策略换取真正的并行速度
+- Phase 9 使用 `investigator`：确保输出格式简洁（<150行）
 
 **关键差异**:
 - Phase 6: **起草**文档
@@ -171,15 +180,19 @@ flowchart LR
 
 **适用**: Bug 修复、小修改、单文件变更
 
-| 阶段 | 名称 / Name | Agent | 跳过 |
-|:---|:---|:---|:---:|
-| 0 | llmdoc Reading / 读取文档 | 主 Agent | - |
-| 1 | Discovery / 需求发现 | `investigator` | - |
-| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | Phase 2, 4, 5 |
-| 6 | TDD Red / 编写测试 | `tdd-guide` | - |
-| 7 | TDD Green / 编写实现 | `worker` | - |
-| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `code-reviewer` | - |
-| 9 | Summary / 完成总结 | `investigator` | - |
+| 阶段 | 名称 / Name | Agent | 调用方式 | 跳过 |
+|:---|:---|:---|:---|:---:|
+| 0 | llmdoc Reading / 读取文档 | 主 Agent | - | - |
+| 1 | Discovery / 需求发现 | 自然语言: investigator | - | - |
+| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - | Phase 2, 4, 5 |
+| 6 | TDD Red / 编写测试 | 自然语言: tdd-guide | - | - |
+| 7 | TDD Green / 编写实现 | 自然语言: worker | - | - |
+| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `general-purpose` | Task 并行 | - |
+| 9 | Summary / 完成总结 | 自然语言: investigator | - | - |
+
+**调用方式说明**:
+- **Task 并行**: Phase 8 使用 `Task(subagent_type="code-simplifier:code-simplifier", ...)` 等
+- **自然语言**: "使用 [agent] 子代理..."
 
 **跳过的阶段**: Phase 2 (Exploration), Phase 4 (Architecture), Phase 5 (Spec)
 
@@ -187,18 +200,30 @@ flowchart LR
 
 **适用**: 新功能、模块开发、重构
 
-| 阶段 | 名称 / Name | Agent | 并行 |
-|:---|:---|:---|:---:|
-| 0 | llmdoc Reading / 读取文档 | 主 Agent | - |
-| 1 | Discovery / 需求发现 | `investigator` | - |
-| 2 | Exploration / 探索研究 | `investigator` x3 | 是 |
-| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - |
-| 4 | Architecture / 架构设计 | `architect` x2 + `investigator` | 是 |
-| **5** | **Spec / 规范文档** | `spec-guide` | **-** |
-| 6 | TDD Red / 编写测试 | `tdd-guide` | - |
-| 7 | TDD Green / 编写实现 | `worker` | - |
-| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `code-reviewer` | 是 |
-| 9 | Summary / 完成总结 | `investigator` | - |
+| 阶段 | 名称 / Name | Agent | 调用方式 | 并行 |
+|:---|:---|:---|:---|:---:|
+| 0 | llmdoc Reading / 读取文档 | 主 Agent | - | - |
+| 1 | Discovery / 需求发现 | 自然语言: investigator | - | - |
+| 2 | Exploration / 探索研究 | `Explore` x3 | Task | 是 |
+| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - | - |
+| 4 | Architecture / 架构设计 | 自然语言: architect x2 + investigator | 伪并行 | - |
+| **5** | **Spec / 规范文档** | 自然语言: spec-guide | - | **-** |
+| 6 | TDD Red / 编写测试 | 自然语言: tdd-guide | - | - |
+| 7 | TDD Green / 编写实现 | 自然语言: worker | - | - |
+| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `general-purpose` | Task | 是 |
+| 9 | Summary / 完成总结 | 自然语言: investigator | - | - |
+
+**调用方式说明**:
+- **Task 并行**: Phase 2 使用 `Task(subagent_type="Explore", ...)` x3（牺牲策略换速度）
+- **伪并行**: Phase 4 使用自然语言串行调用（保持自定义架构规则）
+- **Task 并行**: Phase 8 使用 `Task(subagent_type="code-simplifier:code-simplifier", ...)` 等
+- **自然语言**: "使用 architect/investigator/spec-guide/tdd-guide/worker 子代理..."
+
+**设计权衡**:
+- Phase 1/9 使用 `investigator`：保持 auggie → llmdoc → Grep 策略
+- Phase 2 使用 `Explore` 并行：探索阶段可以牺牲策略换速度
+- Phase 4 使用 `architect`：架构设计需要自定义规则，选择规则而非并行
+- Phase 5/6/7 使用自定义 agents：保持 TDD/SpecDD 流程完整性
 
 ## 硬约束
 

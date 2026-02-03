@@ -1,8 +1,9 @@
 ---
-name: gclm-architect
+name: architect
 description: 高级架构设计 Agent，通过分析现有代码库模式和约定，提供全面的实现蓝图，包括具体文件创建/修改、组件设计、数据流和构建序列
 tools: ["Glob", "Grep", "Read", "TodoWrite", "WebSearch", "WebFetch"]
 model: opus
+permission: auto
 color: green
 ---
 

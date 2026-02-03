@@ -2,8 +2,8 @@
 # -*- mode: sh; sh-basic-offset: 4; indent-tabs-mode: nil; coding: utf-8 -*-
 # vim: set filetype=sh sw=4 sts=4 et:
 
-# gclm-flow 插件安装脚本
-# 兼容 bash 和 zsh
+# gclm-flow 全局配置安装脚本
+# 将自定义 agents 安装到 ~/.claude/agents/，使其在所有项目中可用
 
 set -euo pipefail
 
@@ -40,19 +40,19 @@ else
     # 如果是软链接，解析真实路径
     [ -L "$0" ] && SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "$0")")" && pwd)" 2>/dev/null || true
 fi
-# install.sh 位于项目根目录，所以 PLUGIN_DIR 就是 SCRIPT_DIR
-PLUGIN_DIR="$SCRIPT_DIR"
+
+# 全局配置模式：项目目录
+PROJECT_DIR="$SCRIPT_DIR"
 OS="$(detect_os)"
-
-echo "🚀 安装 gclm-flow 融合开发工作流插件..."
-echo ""
-print_color "$BLUE" "插件目录: $PLUGIN_DIR"
-print_color "$BLUE" "操作系统: $OS"
-echo ""
-
 # 备份现有配置（只保留最新一个）
 CLAUDE_DIR="$HOME/.claude"
 BACKUP_DIR="$HOME/.claude.backup"
+
+echo "🚀 安装 gclm-flow 全局配置..."
+echo ""
+print_color "$BLUE" "项目目录: $PROJECT_DIR"
+print_color "$BLUE" "操作系统: $OS"
+echo ""
 
 if [ -d "$CLAUDE_DIR" ]; then
     print_color "$YELLOW" "备份现有配置到: $BACKUP_DIR"
@@ -73,36 +73,37 @@ done
 
 # 复制 agents
 print_color "$BLUE" "安装 agents..."
-cp -R "$PLUGIN_DIR/agents/"*.md "$CLAUDE_DIR/agents/" 2>/dev/null || true
+cp -R "$PROJECT_DIR/agents/"*.md "$CLAUDE_DIR/agents/" 2>/dev/null || true
 
 # 复制 commands
 print_color "$BLUE" "安装 commands..."
-cp -R "$PLUGIN_DIR/commands/"*.md "$CLAUDE_DIR/commands/" 2>/dev/null || true
+cp -R "$PROJECT_DIR/commands/"*.md "$CLAUDE_DIR/commands/" 2>/dev/null || true
 
 # 复制 skills
 print_color "$BLUE" "安装 skills..."
-cp -R "$PLUGIN_DIR/skills/"* "$CLAUDE_DIR/skills/" 2>/dev/null || true
+cp -R "$PROJECT_DIR/skills/"* "$CLAUDE_DIR/skills/" 2>/dev/null || true
 
 # 复制 rules
 print_color "$BLUE" "安装 rules..."
-cp -R "$PLUGIN_DIR/rules/"*.md "$CLAUDE_DIR/rules/" 2>/dev/null || true
+cp -R "$PROJECT_DIR/rules/"*.md "$CLAUDE_DIR/rules/" 2>/dev/null || true
 
 # 复制 hooks
 print_color "$BLUE" "安装 hooks..."
 mkdir -p "$CLAUDE_DIR/hooks/setup"
-cp -R "$PLUGIN_DIR/hooks/"*.sh "$CLAUDE_DIR/hooks/" 2>/dev/null || true
+cp -R "$PROJECT_DIR/hooks/"*.sh "$CLAUDE_DIR/hooks/" 2>/dev/null || true
 # Setup hooks 需要放到 setup/ 目录
-cp -R "$PLUGIN_DIR/hooks/setup-"*.sh "$CLAUDE_DIR/hooks/setup/" 2>/dev/null || true
+cp -R "$PROJECT_DIR/hooks/setup-"*.sh "$CLAUDE_DIR/hooks/setup/" 2>/dev/null || true
 chmod +x "$CLAUDE_DIR/hooks/"*.sh 2>/dev/null || true
 chmod +x "$CLAUDE_DIR/hooks/setup/"*.sh 2>/dev/null || true
 
-# 检查 auggie（必需依赖）
+# 检查 auggie（推荐依赖）
 print_color "$BLUE" "检查 auggie..."
 if command -v auggie &>/dev/null && auggie --version &>/dev/null; then
     print_color "$GREEN" "✓ auggie 已安装"
 else
-    print_color "$RED" "✗ auggie 未安装（必需依赖）"
-    echo "  请运行: npm install -g @augmentcode/auggie@prerelease"
+    print_color "$YELLOW" "⚠ auggie 未安装（推荐）"
+    echo "  代码搜索增强，安装命令:"
+    echo "    npm install -g @augmentcode/auggie@prerelease"
 fi
 
 # 检查 Playwright（可选，浏览器自动化）
@@ -211,13 +212,13 @@ else
 fi
 
 # 复制 CLAUDE.example.md 到 CLAUDE.md
-if [ -f "$PLUGIN_DIR/CLAUDE.example.md" ]; then
+if [ -f "$PROJECT_DIR/CLAUDE.example.md" ]; then
     print_color "$BLUE" "安装 CLAUDE.md..."
-    cp "$PLUGIN_DIR/CLAUDE.example.md" "$CLAUDE_DIR/CLAUDE.md"
+    cp "$PROJECT_DIR/CLAUDE.example.md" "$CLAUDE_DIR/CLAUDE.md"
 fi
 
 echo ""
-print_color "$GREEN" "✅ gclm-flow 安装完成！"
+print_color "$GREEN" "✅ gclm-flow 全局配置安装完成！"
 echo ""
 echo "已安装的组件："
 echo "  - Agents: $(ls "$CLAUDE_DIR/agents" 2>/dev/null | wc -l | tr -d ' ') 个"
@@ -226,12 +227,20 @@ echo "  - Skills: $(find "$CLAUDE_DIR/skills" -name "SKILL.md" 2>/dev/null | wc 
 echo "  - Rules: $(ls "$CLAUDE_DIR/rules" 2>/dev/null | wc -l | tr -d ' ') 个"
 echo "  - Hooks: $(ls "$CLAUDE_DIR/hooks" 2>/dev/null | wc -l | tr -d ' ') 个"
 echo ""
+echo "可用的 Sub-Agents (通过自然语言调用):"
+echo "  - investigator: 代码库调查（Haiku）"
+echo "  - architect: 架构设计（Opus）"
+echo "  - worker: 任务执行（Sonnet）"
+echo "  - tdd-guide: TDD 指导（Sonnet）"
+echo "  - spec-guide: SpecDD 指导（Opus）"
+echo "  - code-reviewer: 代码审查（Sonnet）"
+echo ""
 echo "使用方法："
-echo "  /gclm <功能描述>     - 启动完整工作流"
-echo "  /investigate <问题>   - 快速代码库调查"
-echo "  /tdd <功能>          - 测试驱动开发 (TDD)"
-echo "  /spec <功能>         - 规范驱动开发 (SpecDD)"
-echo "  /llmdoc              - 更新项目文档"
+echo "  自然语言: 使用 investigator 子代理分析..."
+echo "  命令: /gclm <任务>"
+echo "  命令: /investigate <问题>"
+echo "  命令: /tdd <功能>"
+echo "  命令: /spec <功能>"
 echo ""
 if [ -n "${BACKUP_DIR:-}" ]; then
     echo "备份位置: $BACKUP_DIR"

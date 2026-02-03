@@ -1,5 +1,5 @@
 ---
-name: gclm-code-reviewer
+name: code-reviewer
 description: 代码审查专家，检查正确性、简洁性、安全性和约定遵循。捕捉缺陷和复杂性。
 tools: ["Read", "Grep", "Glob"]
 model: sonnet

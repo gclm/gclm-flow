@@ -1,5 +1,5 @@
 ---
-name: gclm-worker
+name: worker
 description: 精确执行明确定义的任务。实现代码、运行测试、执行命令。遵循现有代码模式，最小化 diff。
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: sonnet

@@ -1,5 +1,5 @@
 ---
-name: gclm-spec-guide
+name: spec-guide
 description: 规范驱动开发专家。复杂模块开发前，先编写详细技术规范文档，确保设计质量和可测试性。
 tools: ["Read", "Write", "Edit", "Bash", "Grep", "Glob"]
 model: opus
