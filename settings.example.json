@@ -1,0 +1,50 @@
+{
+  "_comment": "Claude Code 配置示例 - 复制此文件到 ~/.claude/settings.json 并根据需要修改",
+  "mcpServers": {
+    "auggie": {
+      "command": "auggie",
+      "args": ["--mcp"],
+      "env": {
+        "AUGMENT_API_TOKEN": "",
+        "AUGMENT_API_URL": "https://acemcp.heroman.wtf/relay/"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp"],
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "true"
+      }
+    },
+    "chrome-devtools": {
+      "command": "npx",
+      "args": ["-y", "chrome-devtools-mcp"],
+      "env": {
+        "HEADLESS": "false"
+      }
+    }
+  },
+  "hooks": {
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/notify.sh '需要权限确认'"
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/notify.sh '有待处理的操作'"
+          }
+        ]
+      }
+    ]
+  }
+}

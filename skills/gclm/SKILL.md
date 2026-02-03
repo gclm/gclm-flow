@@ -2,12 +2,14 @@
 name: gclm
 description: "智能分流工作流 - SpecDD + TDD + Document-First + llmdoc 优先 + 分层回退代码搜索 + 多 Agent 并行。自动判断任务类型：DOCUMENT / CODE_SIMPLE / CODE_COMPLEX"
 allowed-tools: [
-  "Bash(${SKILL_DIR}/setup-gclm.sh:*)",
+  "Bash(~/.claude/skills/gclm/setup-gclm.sh:*)",
   "Bash(mkdir -p .claude*)",
   "Bash(ls -la .claude/*)",
-  "Read(.claude/*)",
-  "Write(.claude/*)",
-  "Edit(.claude/*)"
+  "Read(*)",
+  "Write(*)",
+  "Edit(*)",
+  "Glob(*)",
+  "Grep(*)"
 ]
 ---
 
@@ -16,6 +18,38 @@ allowed-tools: [
 ## 核心哲学
 
 **SpecDD + TDD + Document-First + llmdoc 优先 + 分层回退 (auggie → llmdoc → Grep) + 多 Agent 并行 + 智能分流**
+
+## 重要: 文件操作指导
+
+### 读取和搜索 - shell 工具更快
+
+```bash
+# 读取（推荐 shell）
+cat file.txt
+head -20 file.txt
+tail -50 file.txt
+
+# 搜索（推荐 shell）
+find . -name "*.ts"
+grep "pattern" file.txt
+```
+
+### 创建和编辑 - 避免使用 shell
+
+**创建文件**: 使用 `Write` 工具，禁止 touch/echo/cat >
+
+**编辑文件**:
+1. **复杂编辑**: Read → 分析 → Write（推荐）
+2. **简单替换**: Edit 工具（谨慎，确保上下文唯一）
+3. **禁止**: sed/awk/perl/vim 等 shell 编辑工具
+
+### 操作优先级
+
+```
+读取/搜索: cat/grep/find (shell) > Read/Grep/Glob  (更快)
+创建:      Write (禁止 touch/echo/cat >)
+编辑:      Read + Write > Edit (谨慎) >> sed/awk (禁止)
+```
 
 ## 三种工作流类型
 
@@ -30,13 +64,13 @@ allowed-tools: [
 当通过 `/gclm <task>` 触发时，**首先**初始化循环状态：
 
 ```bash
-"${SKILL_DIR}/../scripts/setup-gclm.sh" "<task description>"
+"${SKILL_DIR}/setup-gclm.sh" "<task description>"
 ```
 
 这会创建 `.claude/gclm.{task_id}.local.md` 包含：
 - `active: true`
 - `current_phase: 0`
-- `max_phases: 8`
+- `max_phases: 9`
 - `completion_promise: "<promise>GCLM_WORKFLOW_COMPLETE</promise>"`
 
 ## 智能分流工作流
@@ -57,30 +91,30 @@ flowchart TD
     %% DOCUMENT 工作流
     Doc --> P2_Doc["Phase 2: Exploration / 探索研究<br/>研究相关内容"]
     P2_Doc --> P3_Doc["Phase 3: Clarification / 澄清确认<br/>充分沟通需求<br/>确认/调整类型"]
-    P3_Doc --> P5_Doc["Phase 5: Draft / 起草文档<br/>起草文档/方案"]
-    P5_Doc --> P6_Doc["Phase 6: Refine / 完善内容<br/>完善内容"]
-    P6_Doc --> P7_Doc["Phase 7: Review / 质量审查<br/>审查质量"]
-    P7_Doc --> P8_Doc["Phase 8: Summary / 完成总结<br/>完成总结"]
-    P8_Doc --> End_Doc([完成])
+    P3_Doc --> P6_Doc["Phase 6: Draft / 起草文档<br/>起草文档/方案"]
+    P6_Doc --> P7_Doc["Phase 7: Refine / 完善内容<br/>完善内容"]
+    P7_Doc --> P8_Doc["Phase 8: Review / 质量审查<br/>审查质量"]
+    P8_Doc --> P9_Doc["Phase 9: Summary / 完成总结<br/>完成总结"]
+    P9_Doc --> End_Doc([完成])
 
     %% CODE_SIMPLE 工作流
     Simple --> P3_Simple["Phase 3: Clarification / 澄清确认<br/>确认问题"]
-    P3_Simple --> P5_Simple["Phase 5: TDD Red / 编写测试<br/>写测试"]
-    P5_Simple --> P6_Simple["Phase 6: TDD Green / 编写实现<br/>写实现"]
-    P6_Simple --> P7_Simple["Phase 7: Refactor / 重构审查<br/>重构+审查"]
-    P7_Simple --> P8_Simple["Phase 8: Summary / 完成总结<br/>完成总结"]
-    P8_Simple --> End_Simple([完成])
+    P3_Simple --> P6_Simple["Phase 6: TDD Red / 编写测试<br/>写测试"]
+    P6_Simple --> P7_Simple["Phase 7: TDD Green / 编写实现<br/>写实现"]
+    P7_Simple --> P8_Simple["Phase 8: Refactor / 重构审查<br/>重构+审查"]
+    P8_Simple --> P9_Simple["Phase 9: Summary / 完成总结<br/>完成总结"]
+    P9_Simple --> End_Simple([完成])
 
     %% CODE_COMPLEX 工作流
     Complex --> P2_Complex["Phase 2: Exploration / 探索研究<br/>并行探索 x3"]
     P2_Complex --> P3_Complex["Phase 3: Clarification / 澄清确认<br/>澄清疑问"]
     P3_Complex --> P4_Complex["Phase 4: Architecture / 架构设计<br/>架构设计 x2"]
-    P4_Complex --> P45_Complex["Phase 4.5: Spec / 规范文档<br/>编写规范文档"]
-    P45_Complex --> P5_Complex["Phase 5: TDD Red / 编写测试<br/>基于Spec测试"]
-    P5_Complex --> P6_Complex["Phase 6: TDD Green / 编写实现<br/>实现代码"]
-    P6_Complex --> P7_Complex["Phase 7: Refactor / 重构审查<br/>重构+安全+审查"]
-    P7_Complex --> P8_Complex["Phase 8: Summary / 完成总结<br/>完成总结"]
-    P8_Complex --> End_Complex([完成])
+    P4_Complex --> P5_Complex["Phase 5: Spec / 规范文档<br/>编写规范文档"]
+    P5_Complex --> P6_Complex["Phase 6: TDD Red / 编写测试<br/>基于Spec测试"]
+    P6_Complex --> P7_Complex["Phase 7: TDD Green / 编写实现<br/>实现代码"]
+    P7_Complex --> P8_Complex["Phase 8: Refactor / 重构审查<br/>重构+安全+审查"]
+    P8_Complex --> P9_Complex["Phase 9: Summary / 完成总结<br/>完成总结"]
+    P9_Complex --> End_Complex([完成])
 
     %% 样式
     classDef docStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
@@ -88,9 +122,9 @@ flowchart TD
     classDef complexStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
     classDef phaseStyle fill:#f5f5f5,stroke:#424242,stroke-width:1px
 
-    class Doc,P2_Doc,P3_Doc,P5_Doc,P6_Doc,P7_Doc,P8_Doc,End_Doc docStyle
-    class Simple,P3_Simple,P5_Simple,P6_Simple,P7_Simple,P8_Simple,End_Simple simpleStyle
-    class Complex,P2_Complex,P3_Complex,P4_Complex,P45_Complex,P5_Complex,P6_Complex,P7_Complex,P8_Complex,End_Complex complexStyle
+    class Doc,P2_Doc,P3_Doc,P6_Doc,P7_Doc,P8_Doc,P9_Doc,End_Doc docStyle
+    class Simple,P3_Simple,P6_Simple,P7_Simple,P8_Simple,P9_Simple,End_Simple simpleStyle
+    class Complex,P2_Complex,P3_Complex,P4_Complex,P5_Complex,P6_Complex,P7_Complex,P8_Complex,P9_Complex,End_Complex complexStyle
     class P0,P1,Detect,Start phaseStyle
 ```
 
@@ -121,17 +155,17 @@ flowchart LR
 | 1 | Discovery / 需求发现 | `investigator` | 理解需求 |
 | 2 | Exploration / 探索研究 | `investigator` x3 | 研究相关内容/示例 |
 | 3 | Clarification / 澄清确认 | 主 Agent + AskUser | **充分沟通需求 + 确认/调整工作流类型** |
-| 5 | Draft / 起草文档 | 主 Agent | **起草文档/方案** |
-| 6 | Refine / 完善内容 | 主 Agent | **完善内容** |
-| 7 | Review / 质量审查 | `code-reviewer` | 审查质量 |
-| 8 | Summary / 完成总结 | `investigator` | 完成总结 |
+| 6 | Draft / 起草文档 | 主 Agent | **起草文档/方案** |
+| 7 | Refine / 完善内容 | 主 Agent | **完善内容** |
+| 8 | Review / 质量审查 | `code-reviewer` | 审查质量 |
+| 9 | Summary / 完成总结 | `investigator` | 完成总结 |
 
 **关键差异**:
-- Phase 5: **起草**文档
-- Phase 6: **完善**内容
+- Phase 6: **起草**文档
+- Phase 7: **完善**内容
 - Phase 3 必须充分澄清需求后再动笔
 
-**跳过的阶段**: Phase 4 (Architecture), Phase 4.5 (Spec)
+**跳过的阶段**: Phase 4 (Architecture), Phase 5 (Spec)
 
 ### 🔧 CODE_SIMPLE 工作流
 
@@ -141,13 +175,13 @@ flowchart LR
 |:---|:---|:---|:---:|
 | 0 | llmdoc Reading / 读取文档 | 主 Agent | - |
 | 1 | Discovery / 需求发现 | `investigator` | - |
-| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | Phase 2, 4, 4.5 |
-| 5 | TDD Red / 编写测试 | `tdd-guide` | - |
-| 6 | TDD Green / 编写实现 | `worker` | - |
-| 7 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `code-reviewer` | - |
-| 8 | Summary / 完成总结 | `investigator` | - |
+| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | Phase 2, 4, 5 |
+| 6 | TDD Red / 编写测试 | `tdd-guide` | - |
+| 7 | TDD Green / 编写实现 | `worker` | - |
+| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `code-reviewer` | - |
+| 9 | Summary / 完成总结 | `investigator` | - |
 
-**跳过的阶段**: Phase 2 (Exploration), Phase 4 (Architecture), Phase 4.5 (Spec)
+**跳过的阶段**: Phase 2 (Exploration), Phase 4 (Architecture), Phase 5 (Spec)
 
 ### 🚀 CODE_COMPLEX 工作流
 
@@ -160,11 +194,11 @@ flowchart LR
 | 2 | Exploration / 探索研究 | `investigator` x3 | 是 |
 | 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - |
 | 4 | Architecture / 架构设计 | `architect` x2 + `investigator` | 是 |
-| **4.5** | **Spec / 规范文档** | `architect` + auggie/llmdoc | **-** |
-| 5 | TDD Red / 编写测试 | `tdd-guide` | - |
-| 6 | TDD Green / 编写实现 | `worker` | - |
-| 7 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `code-reviewer` | 是 |
-| 8 | Summary / 完成总结 | `investigator` | - |
+| **5** | **Spec / 规范文档** | `spec-guide` | **-** |
+| 6 | TDD Red / 编写测试 | `tdd-guide` | - |
+| 7 | TDD Green / 编写实现 | `worker` | - |
+| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `code-reviewer` | 是 |
+| 9 | Summary / 完成总结 | `investigator` | - |
 
 ## 硬约束
 
@@ -172,12 +206,12 @@ flowchart LR
 2. **代码搜索分层回退**: auggie (推荐) → llmdoc + Grep (备选)
 3. **智能分流**: Phase 1 后自动判断任务类型（DOCUMENT / CODE_SIMPLE / CODE_COMPLEX）
 4. **Phase 3 不可跳过**: 必须澄清所有疑问 + **确认/调整工作流类型**
-5. **DOCUMENT 工作流**: Phase 5 起草，Phase 6 完善，**先充分沟通再动笔**
-6. **CODE 工作流 Phase 5 TDD 强制**: 必须先写测试
+5. **DOCUMENT 工作流**: Phase 6 起草，Phase 7 完善，**先充分沟通再动笔**
+6. **CODE 工作流 Phase 6 TDD 强制**: 必须先写测试
 7. **并行优先**: 能并行的任务必须并行执行
 8. **状态持久化**: 每个阶段后自动更新状态文件（无需确认）
 9. **选项式编程**: 使用 AskUserQuestion 展示选项
-10. **文档更新询问**: Phase 7 必须询问
+10. **文档更新询问**: Phase 8 必须询问
 
 ## 循环状态管理
 
@@ -196,9 +230,9 @@ phase_name: "<下一阶段名称>"
 **仍需授权的场景**:
 - Phase 3: **工作流类型确认/调整**（自动检测可能有误）
 - Phase 4 (CODE_COMPLEX): Architecture 设计方案审批
-- Phase 7: 文档更新询问
+- Phase 8: 文档更新询问
 
-当所有 8 阶段完成，输出完成信号：
+当所有 9 阶段完成，输出完成信号：
 ```
 <promise>GCLM_WORKFLOW_COMPLETE</promise>
 ```
@@ -245,7 +279,7 @@ npm install -g @augmentcode/auggie@prerelease
 ### 生成约束
 
 - **最小化生成**: 只生成基础文档
-- **增量完善**: 后续可在 Phase 7 补充
+- **增量完善**: 后续可在 Phase 8 补充
 - **保持简洁**: 避免过度生成
 - **直接执行**: llmdoc 不存在时自动生成，**不询问用户**
 
@@ -317,7 +351,7 @@ TaskOutput("p4_test_strategy", block=true)
 # 步骤 4: 等待用户阅读后，使用 AskUserQuestion 询问选择
 ```
 
-**关于 llmdoc**: Phase 4 不会自动生成/更新 llmdoc，文档更新在 Phase 7 询问用户后进行
+**关于 llmdoc**: Phase 4 不会自动生成/更新 llmdoc，文档更新在 Phase 8 询问用户后进行
 
 ## Agent 体系
 
@@ -327,6 +361,7 @@ TaskOutput("p4_test_strategy", block=true)
 | `architect` | 架构设计、方案权衡 | Opus 4.5 |
 | `worker` | 执行明确定义的任务 | Sonnet 4.5 |
 | `tdd-guide` | TDD 流程指导 | Sonnet 4.5 |
+| `spec-guide` | SpecDD 规范文档编写 | Opus 4.5 |
 | `code-simplifier` | 代码简化重构 | Sonnet 4.5 |
 | `security-guidance` | 安全审查 | Sonnet 4.5 |
 | `code-reviewer` | 代码审查 | Sonnet 4.5 |
@@ -338,7 +373,7 @@ TaskOutput("p4_test_strategy", block=true)
 <verbatim request>
 
 ## Context Pack
-- Phase: <0-8 name>
+- Phase: <0-9 name>
 - Decisions: <requirements/constraints/choices>
 - Investigator output: <paste or "None">
 - Architect output: <paste or "None">

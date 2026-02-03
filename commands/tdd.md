@@ -28,19 +28,20 @@ RED → GREEN → REFACTOR → REPEAT
 RED:      编写失败的测试
 GREEN:    编写最小实现使测试通过
 REFACTOR: 改进代码，保持测试通过
-REPEAT:   下一个功能/场景
 ```
 
-## 流程步骤
+## 核心步骤
 
-### Step 1: 定义接口 (SCAFFOLD)
+本命令调用 `tdd-guide` agent 执行指导。详细规则见 `agents/tdd-guide.md`。
+
+### SCAFFOLD: 定义接口
 ```typescript
 export function featureName(input: InputType): OutputType {
   throw new Error('Not implemented')
 }
 ```
 
-### Step 2: 编写测试 (RED)
+### RED: 编写测试
 ```typescript
 describe('featureName', () => {
   it('should do something', () => {
@@ -49,35 +50,11 @@ describe('featureName', () => {
 })
 ```
 
-### Step 3: 运行测试 - 验证失败
+### 验证失败 → GREEN: 实现代码 → 验证通过 → IMPROVE: 重构
+
+### 覆盖率检查
 ```bash
-npm test
-# 应该失败
-```
-
-### Step 4: 实现代码 (GREEN)
-```typescript
-export function featureName(input: InputType): OutputType {
-  // 最小实现
-  return expected
-}
-```
-
-### Step 5: 运行测试 - 验证通过
-```bash
-npm test
-# 应该通过
-```
-
-### Step 6: 重构 (IMPROVE)
-- 消除重复
-- 改进命名
-- 优化性能
-
-### Step 7: 检查覆盖率
-```bash
-npm run test:coverage
-# 验证 > 80%
+npm run test:coverage  # 验证 > 80%
 ```
 
 ## 测试类型
@@ -88,7 +65,7 @@ npm run test:coverage
 | 集成测试 | API、数据库、服务 | 必须 |
 | E2E 测试 | 关键用户流程 | 推荐 |
 
-## 边缘情况检查
+## 边缘情况
 
 - [ ] Null/Undefined
 - [ ] 空数组/字符串
@@ -100,15 +77,11 @@ npm run test:coverage
 ## 覆盖率要求
 
 - **全局**: 80%+
-- **关键代码**: 100%
-  - 认证逻辑
-  - 支付处理
-  - 安全相关
-  - 核心业务逻辑
+- **关键代码** (认证、支付、安全): 100%
 
 ## 约束
 
-1. **绝不一次性生成代码和测试**
-2. **先写测试，后写实现**
-3. **测试必须先失败 (RED)**
-4. **覆盖率 > 80%**
+1. 绝不一次性生成代码和测试
+2. 先写测试，后写实现
+3. 测试必须先失败
+4. 覆盖率 > 80%

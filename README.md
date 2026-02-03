@@ -1,244 +1,154 @@
-# gclm-flow - 智能分流工作流插件
+# gclm-flow
 
-> SpecDD + TDD + llmdoc 优先 + auggie + 多 Agent 并行
-
-<div align="center">
-
-**智能分流工作流 - 自动判断任务类型，选择最优开发流程**
-
-</div>
+> 智能分流工作流插件 - 自动判断任务类型，选择最优开发流程
 
 ---
 
-## 核心哲学
+## 快速导航
 
-1. **SpecDD + TDD**: 复杂模块走 SpecDD，简单修改走 TDD
-2. **llmdoc 优先**: 任何代码操作前必须先读取文档
-3. **auggie 集成**: 智能代码搜索，自动上下文理解
-4. **智能分流**: Phase 1 后自动判断任务复杂度
-5. **Security-First**: 安全永远第一
-
----
-
-## 智能分流工作流
-
-### 自动分类逻辑
-
-```
-                    Phase 1: Discovery
-                            ↓
-                   智能分类 (自动判断)
-                            ↓
-              ┌──────────┼──────────┐
-              │          │          │
-              ↓          ↓          ↓
-        简单任务    中等任务    复杂任务
-        (Bug修复)   (用户确认)   (新功能)
-              │          │          │
-              │          ↓          │
-              │    ┌─────────────┐   │
-              │    │  询问用户    │   │
-              │    │  选择流程    │   │
-              │    └──────┬───────┘   │
-              │           │          │
-              ↓           ↓          ↓
-        简单流程    简单流程    完整流程
-```
-
-### 分类信号
-
-| 信号 | 简单任务 | 复杂任务 |
-|:---|:---|:---|
-| **关键词** | bug, 修复, error, fix, 问题, 调试 | 功能, 模块, 新, 开发, 重构, 系统, 设计 |
-| **文件数** | <= 2 | >= 5 |
-| **风险** | low | any |
-
----
-
-## 8.5 阶段融合工作流
-
-### 简单流程 (SIMPLE) - Bug 修复、小修改
-
-| 阶段 | 名称 | Agent | 跳过 |
-|:---|:---|:---|:---:|
-| 0 | llmdoc + ace-tool | 主 Agent | - |
-| 1 | Discovery | `investigator` | - |
-| 3 | Clarification | 主 Agent + AskUser | 2, 4, 4.5 |
-| 5 | TDD Red | `tdd-guide` | - |
-| 6 | TDD Green | `worker` | - |
-| 7 | Refactor + Security + Review | `code-simplifier` + `security-guidance` + `code-reviewer` | - |
-| 8 | Summary | `investigator` | - |
-
-### 完整流程 (COMPLEX) - 新功能、模块开发
-
-| 阶段 | 名称 | Agent | 并行 |
-|:---|:---|:---|:---:|
-| 0 | llmdoc + ace-tool | 主 Agent | - |
-| 1 | Discovery | `investigator` | - |
-| 2 | Exploration | `investigator` x3 | 是 |
-| 3 | Clarification | 主 Agent + AskUser | - |
-| 4 | Architecture | `architect` x2 + `investigator` | 是 |
-| **4.5** | **Spec** | `architect` + `ace-tool` | **-** |
-| 5 | TDD Red | `tdd-guide` | - |
-| 6 | TDD Green | `worker` | - |
-| 7 | Refactor + Security + Review | `code-simplifier` + `security-guidance` + `code-reviewer` | 是 |
-| 8 | Summary | `investigator` | - |
-
-> 📖 **详细流程说明**: 每个阶段的具体步骤、智能分类逻辑、并行执行模式等，请参阅 [WORKFLOW.md](docs/WORKFLOW.md)
-
----
-
-## 快速开始
-
-### 方式 1: 使用插件市场安装 (推荐)
-
-```bash
-# 添加 gclm-flow 插件市场
-/plugin marketplace add https://github.com/gclm/gclm-flow
-
-# 安装 gclm 插件
-/plugin install gclm@gclm-flow
-```
-
-### 方式 2: 手动安装
-
-```bash
-# 克隆插件
-cd /tmp
-git clone https://github.com/gclm/gclm-flow.git
-cd gclm-flow
-
-# 运行安装脚本
-bash scripts/install.sh
-```
-
-### 方式 3: 直接配置
-
-将 [`CLAUDE.example.md`](CLAUDE.example.md) 的内容复制到 `~/.claude/CLAUDE.md` 文件中。
-
-**完成！** 配置完成后，所有行为自动激活。
-
-### 通知功能配置（macOS 可选）
-
-> **注意**: 通知功能仅支持 macOS
-
-安装后，可以配置 macOS 系统通知：
-
-```bash
-# 1. 安装 terminal-notifier
-brew install terminal-notifier
-
-# 2. 安装 ClaudeNotifier.app
-# 将 ClaudeNotifier.app 放到 /Applications/ 目录
-
-# 3. 重新运行安装脚本（会自动配置 hooks）
-bash scripts/install.sh
-```
-
-安装后，当 Claude Code 需要你的操作时，会收到系统通知。
-
----
-
-## 工作原理
-
-### 自动行为（无需命令）
-
-配置 `CLAUDE.example.md` 后，这些行为**始终激活**：
-
-| 行为 | 效果 |
+| 我想... | 立即跳转 |
 |:---|:---|
-| **文档优先** | Agent 在任何操作前先阅读 `llmdoc/` |
-| **智能分流** | Phase 1 后自动判断任务复杂度 |
-| **代码搜索** | auggie 自动提供代码上下文 |
-| **选项式编程** | 不会直接下结论；通过问题呈现选择 |
-| **文档维护提示** | 编码后询问是否更新文档 |
-| **系统通知** | 需要操作时发送系统通知（仅 macOS） |
+| **快速安装** | [安装指南](#安装) |
+| **怎么用** | [使用方法](#使用方法) |
+| **工作流是什么** | [工作流概览](#工作流概览) |
+| **有哪些命令** | [可用命令](#可用命令) |
+| **Agent 体系** | [Agent 体系](#agent-体系) |
+| **项目结构** | [目录结构](#目录结构) |
 
-### 可用 Commands（快捷命令）
+---
 
-| Command | 触发词 | 描述 |
+## 安装
+
+```bash
+# 方式 1: 插件市场 (推荐)
+/plugin marketplace add https://github.com/gclm/gclm-flow
+/plugin install gclm@gclm-flow
+
+# 方式 2: 手动安装
+cd /tmp && git clone https://github.com/gclm/gclm-flow.git
+cd gclm-flow && bash install.sh
+```
+
+**完成！** 配置自动激活，无需额外设置。
+
+---
+
+## 使用方法
+
+### 基本使用
+
+```bash
+# 启动智能工作流 (自动判断任务类型)
+/gclm 实现用户登录功能
+
+# 快速代码库调查
+/investigate 认证系统是怎么工作的？
+
+# TDD 开发
+/tdd 实现密码验证函数
+
+# SpecDD 开发
+/spec 生成支付模块规范文档
+```
+
+### 它能做什么
+
+| 行为 | 说明 |
+|:---|:---|
+| **智能分流** | 自动判断任务类型 (文档/Bug修复/功能开发) |
+| **文档优先** | 任何操作前先读取项目文档 (llmdoc) |
+| **TDD 强制** | 测试驱动开发，覆盖率 > 80% |
+| **安全审查** | 自动检查安全漏洞 |
+| **代码简化** | 自动重构优化代码 |
+
+---
+
+## 工作流概览
+
+### 三种工作流类型
+
+```mermaid
+flowchart TD
+    Start([开始: /gclm <任务>]) --> P0[Phase 0: 读取文档]
+    P0 --> P1[Phase 1: 需求发现<br/>自动检测类型]
+
+    P1 --> Detect{智能分类}
+
+    Detect -->|文档/方案/设计| Doc[📝 DOCUMENT]
+    Detect -->|bug/修复/error| Simple[🔧 CODE_SIMPLE]
+    Detect -->|功能/模块/开发| Complex[🚀 CODE_COMPLEX]
+
+    Doc --> D2[Phase 2: 探索]
+    Doc --> D3[Phase 3: 澄清]
+    Doc --> D6[Phase 6: 起草]
+    Doc --> D7[Phase 7: 完善]
+    Doc --> D8[Phase 8: 审查]
+    Doc --> D9[Phase 9: 总结]
+
+    Simple --> S3[Phase 3: 澄清]
+    Simple --> S6[Phase 6: TDD Red]
+    Simple --> S7[Phase 7: TDD Green]
+    Simple --> S8[Phase 8: 重构审查]
+    Simple --> S9[Phase 9: 总结]
+
+    Complex --> C2[Phase 2: 并行探索]
+    Complex --> C3[Phase 3: 澄清]
+    Complex --> C4[Phase 4: 架构设计]
+    Complex --> C5[Phase 5: Spec文档]
+    Complex --> C6[Phase 6: TDD Red]
+    Complex --> C7[Phase 7: TDD Green]
+    Complex --> C8[Phase 8: 重构审查]
+    Complex --> C9[Phase 9: 总结]
+
+    classDef docStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef simpleStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef complexStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+
+    class Doc,D2,D3,D6,D7,D8,D9 docStyle
+    class Simple,S3,S6,S7,S8,S9 simpleStyle
+    class Complex,C2,C3,C4,C5,C6,C7,C8,C9 complexStyle
+```
+
+### 工作流对比
+
+| 类型 | 适用场景 | 核心阶段 | 跳过 |
+|:---|:---|:---|:---|
+| 📝 **DOCUMENT** | 文档编写、方案设计 | Draft → Refine → Review | Architecture, Spec |
+| 🔧 **CODE_SIMPLE** | Bug 修复、小修改 | TDD Red → TDD Green | Exploration, Architecture, Spec |
+| 🚀 **CODE_COMPLEX** | 新功能、模块开发 | **全流程** (含 SpecDD) | - |
+
+### 9 阶段说明
+
+| 阶段 | DOCUMENT | CODE_SIMPLE | CODE_COMPLEX |
+|:---|:---:|:---:|:---:|
+| 0: 读取文档 | ✅ | ✅ | ✅ |
+| 1: 需求发现 | ✅ | ✅ | ✅ |
+| 2: 探索研究 | ✅ | ❌ | ✅ |
+| 3: 澄清确认 | ✅ | ✅ | ✅ |
+| 4: 架构设计 | ❌ | ❌ | ✅ |
+| 5: Spec 文档 | ❌ | ❌ | ✅ |
+| 6: Red/起草 | ✅ | ✅ | ✅ |
+| 7: Green/完善 | ✅ | ✅ | ✅ |
+| 8: 审查重构 | ✅ | ✅ | ✅ |
+| 9: 总结 | ✅ | ✅ | ✅ |
+
+---
+
+## 可用命令
+
+| 命令 | 触发词 | 用途 |
 |:---|:---|:---|
-| `/gclm` | "实现功能"、"开发新功能" | 启动智能分流工作流 |
-| `/investigate` | "什么是"、"X怎么工作"、"分析" | 快速代码库调查 |
-| `/tdd` | "写测试"、"TDD" | 测试驱动开发 (TDD) |
-| `/spec` | "生成规范"、"编写 Spec" | 规范驱动开发 (SpecDD) |
-| `/llmdoc` | "更新文档"、"生成文档" | 文档生成或更新 |
-
----
-
-## 融合设计
-
-```
-SpecDD (规范驱动) + TDD (测试驱动) + auggie (代码搜索) + llmdoc (文档优先)
-```
-
-### 关键改进
-
-1. **SpecDD 集成**: 复杂模块先写 Spec，再写测试
-2. **auggie 集成**: 专为代码设计的语义搜索工具
-3. **智能分流**: 自动判断任务类型，选择最优流程
-
----
-
-## 关键约束
-
-1. **llmdoc 优先**: Phase 0 强制执行
-2. **智能分流**: Phase 1 后自动判断任务类型
-3. **Phase 3 不可跳过**: 必须澄清所有疑问
-4. **Phase 5 TDD 强制**: 必须先写测试
-5. **并行优先**: 能并行的任务必须并行执行
-6. **状态持久化**: 中途退出可恢复
-7. **选项式编程**: 使用 AskUserQuestion 展示选项
-8. **文档更新询问**: Phase 7 必须询问
-
----
-
-## 目录结构
-
-```
-gclm-flow/
-├── README.md                      # 本文件
-├── CLAUDE.example.md              # 示例配置
-├── .claude-plugin/                 # 插件市场配置
-│   └── marketplace.json
-├── agents/                        # Agent 定义
-│   ├── investigator.md
-│   ├── architect.md
-│   ├── worker.md
-│   ├── tdd-guide.md
-│   └── code-reviewer.md
-├── commands/                      # 命令定义
-│   ├── gclm.md
-│   ├── investigate.md
-│   ├── tdd.md
-│   ├── spec.md
-│   └── llmdoc.md
-├── skills/                        # Skill 定义
-│   ├── gclm/
-│   │   ├── SKILL.md
-│   │   └── .mcp.json
-│   ├── investigate/
-│   │   └── SKILL.md
-│   └── file-naming-helper/
-│       └── SKILL.md
-├── rules/                         # 规则文件
-│   ├── phases.md
-│   ├── llmdoc.md
-│   ├── tdd.md
-│   └── agents.md
-├── scripts/                       # 脚本
-│   └── install.sh                 # 安装脚本
-├── hooks/                         # Hooks
-│   ├── notify.sh                  # 通知脚本
-│   └── stop-gclm-loop.sh          # 停止循环 hook
-├── settings-hooks.example.json    # Hooks 配置示例
-└── docs/                          # 文档
-    └── WORKFLOW.md
-```
+| `/gclm` | "实现功能"、"开发" | 智能分流工作流 |
+| `/investigate` | "是什么"、"怎么工作" | 代码库调查 |
+| `/tdd` | "写测试"、"TDD" | 测试驱动开发 |
+| `/spec` | "生成规范"、"Spec" | 规范驱动开发 |
+| `/llmdoc` | "更新文档"、"生成文档" | 文档生成/更新 |
 
 ---
 
 ## Agent 体系
+
+### gclm-flow 自定义 Agents
 
 | Agent | 职责 | 模型 |
 |:---|:---|:---|
@@ -246,19 +156,57 @@ gclm-flow/
 | `architect` | 架构设计、方案权衡 | Opus 4.5 |
 | `worker` | 执行明确定义的任务 | Sonnet 4.5 |
 | `tdd-guide` | TDD 流程指导 | Sonnet 4.5 |
-| `code-simplifier` | 代码简化重构 | Sonnet 4.5 |
-| `security-guidance` | 安全审查 | Sonnet 4.5 |
+| `spec-guide` | SpecDD 规范文档编写 | Opus 4.5 |
 | `code-reviewer` | 代码审查 | Sonnet 4.5 |
+
+### Claude Code 官方插件（外部）
+
+| Agent | 插件名 | 职责 |
+|:---|:---|:---|
+| `code-simplifier` | `code-simplifier@claude-plugins-official` | 代码简化重构 |
+| `security-guidance` | `security-guidance@claude-plugins-official` | 安全审查 |
 
 ---
 
-## 外部工具集成
+## 外部工具
 
-| 工具 | 用途 | 安装 | 必需 |
-|:---|:---|:---|:---:|
-| **auggie** | 代码搜索、上下文增强 | `npm install -g @augmentcode/auggie@prerelease` | ✅ |
-| **Chrome DevTools MCP** | Chrome 调试、性能分析 | `npm install -g chrome-devtools-mcp` | - |
-| **Playwright MCP** | 跨浏览器测试 | `npm install -g @playwright/mcp` | - |
+| 工具 | 用途 | 必需 |
+|:---|:---|:---:|
+| **auggie** | 代码搜索、上下文增强 | 推荐 |
+
+```bash
+# 安装 auggie (可选但推荐)
+npm install -g @augmentcode/auggie@prerelease
+```
+
+---
+
+## 目录结构
+
+```
+gclm-flow/
+├── README.md              # 本文件
+├── CLAUDE.example.md      # 示例配置
+├── agents/                # Agent 定义
+├── commands/              # 命令定义
+├── skills/                # Skill 定义
+├── rules/                 # 工作流规则
+├── scripts/               # 安装脚本
+├── hooks/                 # Hooks
+├── llmdoc/                # 项目文档
+└── docs/                  # 分析报告
+```
+
+---
+
+## 核心特性
+
+- **智能分流**: 自动判断任务类型，选择最优流程
+- **llmdoc 优先**: 任何操作前先读取项目文档
+- **SpecDD 集成**: 复杂模块先写规范文档
+- **TDD 强制**: 测试驱动开发，覆盖率 > 80%
+- **多 Agent 并行**: 关键阶段并行执行
+- **状态持久化**: 中途可恢复
 
 ---
 
@@ -268,17 +216,7 @@ gclm-flow/
 2. 无已知安全漏洞
 3. 代码可读性高
 4. 需求完整满足
-5. 文档已更新（如选择）
-
----
-
-## 成本与效果
-
-**诚实评估**: 智能分流工作流用 **1.5 倍的价钱**完成了从 85 分到 92 分的效果提升。
-
-- 简单项目：快速 TDD，效率提升
-- 复杂项目：SpecDD 确保 quality，收益显著
-- 生产级代码库（10万+ 行）：效果出色
+5. 文档已更新
 
 ---
 

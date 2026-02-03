@@ -20,19 +20,17 @@ description: "快速代码库调查 - 文档优先，无状态输出"
 /investigate 解释一下用户注册流程
 ```
 
-## 调查协议
+## 核心协议
+
+本命令调用 `investigator` agent 执行调查。详细规则见 `agents/investigator.md`。
+
+### Phase 0: auggie 语义搜索 (推荐，可选)
+
+如果 auggie 可用，优先使用语义搜索。
 
 ### Phase 1: Documentation First (强制)
 
-在接触任何源代码前，必须：
-
-1. 检查 `llmdoc/` 是否存在
-2. 如果存在，按顺序读取：
-   - `llmdoc/index.md`
-   - `llmdoc/overview/*.md`
-   - `llmdoc/architecture/*.md`
-   - `llmdoc/guides/*.md`
-   - `llmdoc/reference/*.md`
+在接触源代码前，必须先读取 `llmdoc/` 目录。
 
 ### Phase 2: Code Investigation
 
@@ -40,11 +38,7 @@ description: "快速代码库调查 - 文档优先，无状态输出"
 
 ### Phase 3: Report
 
-输出简洁报告，包含：
-- Code Sections (文件引用)
-- Conclusions (关键发现)
-- Relations (模块关系)
-- Result (直接回答)
+输出简洁报告 (< 150 行)，不写入文件。
 
 ## 输出格式
 

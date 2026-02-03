@@ -10,6 +10,7 @@
 | `architect` | 架构设计、方案权衡 | Opus 4.5 | `agents/architect.md` |
 | `worker` | 执行明确定义的任务 | Sonnet 4.5 | `agents/worker.md` |
 | `tdd-guide` | TDD 流程指导 | Sonnet 4.5 | `agents/tdd-guide.md` |
+| `spec-guide` | SpecDD 规范文档编写 | Opus 4.5 | `agents/spec-guide.md` |
 | `code-reviewer` | 代码审查 | Sonnet 4.5 | `agents/code-reviewer.md` |
 
 ### Claude Code 官方插件
@@ -173,3 +174,91 @@ Phase 7: code-simplifier + security-guidance + code-reviewer (并行重构+安�
 | 快速调查 | Haiku 4.5 | 速度快，成本低 |
 | 复杂设计 | Opus 4.5 | 深度思考，高质量 |
 | 标准实现 | Sonnet 4.5 | 平衡速度和质量 |
+
+---
+
+## 并行冲突解决
+
+### 输出合并优先级
+
+当多个 Agent 并行输出时，按以下优先级合并：
+
+1. **architect 输出** > **investigator 输出** (设计方案 > 探索发现)
+2. **具体文件路径** > **抽象描述**
+3. **主 Agent 输出** > **并行 Agent 输出** (最终决策权)
+
+### 矛盾处理流程
+
+```
+┌─────────────────┐
+│ 并行 Agent 输出  │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌──────────────┐
+│ 检测矛盾?       │──否─▶│ 直接合并     │
+└────────┬────────┘     └──────────────┘
+         │是
+         ▼
+┌─────────────────┐
+│ 应用优先级规则   │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐     ┌──────────────┐
+│ 仍有矛盾?       │──否─▶│ 合并结果     │
+└────────┬────────┘     └──────────────┘
+         │是
+         ▼
+┌─────────────────┐
+│ 展示选项给用户   │ ◀── AskUserQuestion
+└─────────────────┘
+```
+
+### 具体规则
+
+| 场景 | 处理方式 |
+|:---|:---|
+| **文件路径冲突** | 具体路径 (含行号) > 抽象路径 |
+| **方案冲突** | architect 方案 > investigator 建议 |
+| **无法自动解决** | 使用 AskUserQuestion 展示选项 |
+
+### Phase 2 并行探索
+
+3 个 `investigator` 并行时，任务分配：
+- Agent 1: 相似功能搜索
+- Agent 2: 架构映射
+- Agent 3: 代码规范识别
+
+**冲突处理**: 使用不同的 Grep 模式和 Glob 路径，避免文件竞争。
+
+### Phase 4 并行设计
+
+2 个 `architect` + 1 个 `investigator` 并行时：
+- Architect 1: 组件设计
+- Architect 2: 数据流设计
+- Investigator: 依赖分析
+
+**冲突处理**: 各自关注不同层面，最后汇总合并。
+
+### Phase 7 并行审查
+
+`code-simplifier` + `security-guidance` + `code-reviewer` 并行时：
+- 各自独立分析
+- 输出格式统一化
+- 主 Agent 合并建议
+
+**冲突处理**: 优先级：**安全** > **正确性** > **简洁性**
+
+---
+
+## Agent 调用时机表
+
+| 场景 | 触发条件 | Agent | 理由 |
+|:---|:---|:---|:---|
+| 架构设计 | 涉及 ≥3 个文件或跨模块 | `architect` | 复杂设计需要 Opus |
+| Bug 修复 | 单文件，<50 行变更 | `worker` + `tdd-guide` | 简单修复 |
+| 代码调查 | 需要理解代码库结构 | `investigator` | 快速调查用 Haiku |
+| Spec 文档 | Phase 5 阶段 | `spec-guide` | SpecDD 专用 |
+| 测试编写 | Phase 6 阶段 | `tdd-guide` | TDD 指导 |
+| 代码审查 | Phase 7 阶段 | `code-simplifier` + `security-guidance` + `code-reviewer` | 并行审查 |

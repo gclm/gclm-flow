@@ -1,5 +1,4 @@
 ---
-name: spec
 description: SpecDD (Specification-Driven Development) - 规范驱动开发工作流
 ---
 
@@ -12,10 +11,12 @@ description: SpecDD (Specification-Driven Development) - 规范驱动开发工�
 ```
 Phase 4 (Architecture)
     ↓
-Phase 4.5 (Spec) ← 当前
+Phase 5 (Spec) ← 当前
     ↓
-Phase 5 (TDD Red)
+Phase 6 (TDD Red)
 ```
+
+本命令调用 `spec-guide` agent 执行指导。详细规则见 `agents/spec-guide.md`。
 
 ## Spec 文档结构
 
@@ -69,5 +70,5 @@ Phase 5 (TDD Red)
 
 - **Phase 1 Discovery**: 提供需求和验收标准
 - **Phase 4 Architecture**: 基于设计方案编写
-- **Phase 5 TDD Red**: 作为测试编写依据
-- **Phase 6 TDD Green**: 作为实现指南
+- **Phase 6 TDD Red**: 作为测试编写依据
+- **Phase 7 TDD Green**: 作为实现指南
