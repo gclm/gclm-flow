@@ -1,7 +1,14 @@
 ---
 name: gclm
 description: "智能分流工作流 - SpecDD + TDD + llmdoc 优先 + ace-tool + 多 Agent 并行。自动判断任务类型：简单任务走 TDD，复杂任务走 SpecDD (Architecture + Spec + TDD)"
-allowed-tools: ["Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)"]
+allowed-tools: [
+  "Bash(${SKILL_DIR}/../scripts/setup-gclm.sh:*)",
+  "Bash(mkdir -p .claude*)",
+  "Bash(ls -la .claude/*)",
+  "Read(.claude/*)",
+  "Write(.claude/*)",
+  "Edit(.claude/*)"
+]
 ---
 
 # gclm-flow 智能分流工作流 Skill
