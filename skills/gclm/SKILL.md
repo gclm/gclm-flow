@@ -1,19 +1,22 @@
 ---
 name: gclm
-description: "智能分流工作流 - SpecDD + TDD + Document-First + llmdoc 优先 + 分层回退代码搜索 + 多 Agent 并行。自动判断任务类型：DOCUMENT / CODE_SIMPLE / CODE_COMPLEX"
+description: "智能分流工作流 - SpecDD + TDD + Document-First + llmdoc 优先 + 分层回退代码搜索 + 多 Agent 并行。自动判断任务类型：DOCUMENT / CODE_SIMPLE / CODE_COMPLEX。使用 Go 引擎进行工作流配置和状态管理。"
 allowed-tools: [
-  "Bash(~/.claude/skills/gclm/setup-gclm.sh --export *)",
-  "Bash(mkdir -p .claude*)",
-  "Bash(ls -la .claude/*)",
+  # gclm-engine 通用命令（自动支持新工作流）
+  "Bash(gclm-engine *)",
+  "Bash(gclm *)",
+
+  # 标准工具
   "Read(*)",
   "Write(*)",
   "Edit(*)",
   "Glob(*)",
-  "Grep(*)"
+  "Grep(*)",
+  "Task(*)"
 ]
+version: "2.0"
+engine: "gclm-engine Go Engine"
 ---
-
-# gclm-flow 智能分流工作流 Skill
 
 ## 核心哲学
 
@@ -43,14 +46,6 @@ grep "pattern" file.txt
 2. **简单替换**: Edit 工具（谨慎，确保上下文唯一）
 3. **禁止**: sed/awk/perl/vim 等 shell 编辑工具
 
-### 操作优先级
-
-```
-读取/搜索: cat/grep/find (shell) > Read/Grep/Glob  (更快)
-创建:      Write (禁止 touch/echo/cat >)
-编辑:      Read + Write > Edit (谨慎) >> sed/awk (禁止)
-```
-
 ## 三种工作流类型
 
 | 类型 | 检测关键词 | 适用场景 | 核心阶段 |
@@ -63,27 +58,53 @@ grep "pattern" file.txt
 
 当通过 `/gclm <task>` 触发时，**首先**初始化循环状态：
 
-### 步骤 1: 调用脚本获取元数据
+### 步骤 1: 调用 Go 引擎创建任务
 
 ```bash
-# 脚本返回 JSON，包含 task_id, workflow_type, state_file_content 等
-~/.claude/skills/gclm/setup-gclm.sh --export "<task description>"
+# gclm-engine 安装在 ~/.gclm-flow/，workflows 也在同一目录
+~/.gclm-flow/gclm-engine workflow start "<task description>" --json
 ```
 
-### 步骤 2: 使用 Write 工具创建状态文件
-
-**重要**: 必须使用 `Write` 工具创建状态文件，禁止使用 shell 的 `cat >`
-
+**返回示例**:
+```json
+{
+  "task_id": "task-xxx",
+  "workflow_type": "CODE_SIMPLE",
+  "total_phases": 8,
+  "current_phase": {
+    "phase_id": "phase-xxx",
+    "phase_name": "discovery",
+    "display_name": "Discovery / 需求发现",
+    "agent": "investigator",
+    "model": "haiku",
+    "sequence": 0,
+    "required": true,
+    "timeout": 60
+  },
+  "message": "Workflow started successfully"
+}
 ```
-Write(".claude/gclm.{task_id}.local.md", <state_file_content from script>)
-```
 
-状态文件包含：
-- `active: true`
-- `current_phase: 0`
-- `max_phases: 9`
-- `workflow_type`: 自动检测 (DOCUMENT / CODE_SIMPLE / CODE_COMPLEX)
-- `completion_promise: "<promise>GCLM_WORKFLOW_COMPLETE</promise>"`
+### 步骤 2: 保存 task_id 到本地状态文件
+
+创建 `.claude/gclm-engine.local.md` 用于持久化当前任务 ID：
+
+```markdown
+---
+active: true
+task_id: task-xxx
+workflow_type: CODE_SIMPLE
+current_phase: 0
+total_phases: 8
+completion_promise: "<promise>GCLM_WORKFLOW_COMPLETE"
+---
+
+# gclm-engine 任务状态
+
+**Task ID**: task-xxx
+**Workflow**: CODE_SIMPLE
+**当前阶段**: 0 - Discovery / 需求发现
+```
 
 ## 智能分流工作流
 
@@ -91,8 +112,9 @@ Write(".claude/gclm.{task_id}.local.md", <state_file_content from script>)
 
 ```mermaid
 flowchart TD
-    Start([开始: /gclm <任务>]) --> P0["Phase 0: llmdoc Reading / 读取文档<br/>代码上下文获取"]
-    P0 --> P1["Phase 1: Discovery / 需求发现<br/>自动检测工作流类型"]
+    Start([开始: /gclm <任务>]) --> Init["调用 gclm-engine<br/>创建任务"]
+    Init --> P0["Phase 0: llmdoc Reading"]
+    P0 --> P1["Phase 1: Discovery<br/>自动检测工作流类型"]
 
     P1 --> Detect{智能分类}
 
@@ -101,60 +123,32 @@ flowchart TD
     Detect -->|功能/模块/开发| Complex[🚀 CODE_COMPLEX]
 
     %% DOCUMENT 工作流
-    Doc --> P2_Doc["Phase 2: Exploration / 探索研究<br/>研究相关内容"]
-    P2_Doc --> P3_Doc["Phase 3: Clarification / 澄清确认<br/>充分沟通需求<br/>确认/调整类型"]
-    P3_Doc --> P6_Doc["Phase 6: Draft / 起草文档<br/>起草文档/方案"]
-    P6_Doc --> P7_Doc["Phase 7: Refine / 完善内容<br/>完善内容"]
-    P7_Doc --> P8_Doc["Phase 8: Review / 质量审查<br/>审查质量"]
-    P8_Doc --> P9_Doc["Phase 9: Summary / 完成总结<br/>完成总结"]
+    Doc --> P2_Doc["Phase 2: Exploration"]
+    P2_Doc --> P3_Doc["Phase 3: Clarification"]
+    P3_Doc --> P6_Doc["Phase 6: Draft"]
+    P6_Doc --> P7_Doc["Phase 7: Refine"]
+    P7_Doc --> P8_Doc["Phase 8: Review"]
+    P8_Doc --> P9_Doc["Phase 9: Summary"]
     P9_Doc --> End_Doc([完成])
 
     %% CODE_SIMPLE 工作流
-    Simple --> P3_Simple["Phase 3: Clarification / 澄清确认<br/>确认问题"]
-    P3_Simple --> P6_Simple["Phase 6: TDD Red / 编写测试<br/>写测试"]
-    P6_Simple --> P7_Simple["Phase 7: TDD Green / 编写实现<br/>写实现"]
-    P7_Simple --> P8_Simple["Phase 8: Refactor / 重构审查<br/>重构+审查"]
-    P8_Simple --> P9_Simple["Phase 9: Summary / 完成总结<br/>完成总结"]
+    Simple --> P3_Simple["Phase 3: Clarification"]
+    P3_Simple --> P6_Simple["Phase 6: TDD Red"]
+    P6_Simple --> P7_Simple["Phase 7: TDD Green"]
+    P7_Simple --> P8_Simple["Phase 8: Refactor+Review"]
+    P8_Simple --> P9_Simple["Phase 9: Summary"]
     P9_Simple --> End_Simple([完成])
 
     %% CODE_COMPLEX 工作流
-    Complex --> P2_Complex["Phase 2: Exploration / 探索研究<br/>并行探索 x3"]
-    P2_Complex --> P3_Complex["Phase 3: Clarification / 澄清确认<br/>澄清疑问"]
-    P3_Complex --> P4_Complex["Phase 4: Architecture / 架构设计<br/>架构设计 x2"]
-    P4_Complex --> P5_Complex["Phase 5: Spec / 规范文档<br/>编写规范文档"]
-    P5_Complex --> P6_Complex["Phase 6: TDD Red / 编写测试<br/>基于Spec测试"]
-    P6_Complex --> P7_Complex["Phase 7: TDD Green / 编写实现<br/>实现代码"]
-    P7_Complex --> P8_Complex["Phase 8: Refactor / 重构审查<br/>重构+安全+审查"]
-    P8_Complex --> P9_Complex["Phase 9: Summary / 完成总结<br/>完成总结"]
+    Complex --> P2_Complex["Phase 2: Exploration"]
+    P2_Complex --> P3_Complex["Phase 3: Clarification"]
+    P3_Complex --> P4_Complex["Phase 4: Architecture"]
+    P4_Complex --> P5_Complex["Phase 5: Spec"]
+    P5_Complex --> P6_Complex["Phase 6: TDD Red"]
+    P6_Complex --> P7_Complex["Phase 7: TDD Green"]
+    P7_Complex --> P8_Complex["Phase 8: Refactor+Review"]
+    P8_Complex --> P9_Complex["Phase 9: Summary"]
     P9_Complex --> End_Complex([完成])
-
-    %% 样式
-    classDef docStyle fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef simpleStyle fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef complexStyle fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef phaseStyle fill:#f5f5f5,stroke:#424242,stroke-width:1px
-
-    class Doc,P2_Doc,P3_Doc,P6_Doc,P7_Doc,P8_Doc,P9_Doc,End_Doc docStyle
-    class Simple,P3_Simple,P6_Simple,P7_Simple,P8_Simple,P9_Simple,End_Simple simpleStyle
-    class Complex,P2_Complex,P3_Complex,P4_Complex,P5_Complex,P6_Complex,P7_Complex,P8_Complex,P9_Complex,End_Complex complexStyle
-    class P0,P1,Detect,Start phaseStyle
-```
-
-### 代码搜索分层回退
-
-```mermaid
-flowchart LR
-    Start([需要代码上下文]) --> CheckAuggie{auggie<br/>可用?}
-    CheckAuggie -->|✅| Auggie[语义搜索]
-    CheckAuggie -->|❌| CheckLlmdoc{llmdoc<br/>存在?}
-    CheckLlmdoc -->|✅| Llmdoc[结构化索引]
-    CheckLlmdoc -->|❌| GenLlmdoc[生成 llmdoc]
-    GenLlmdoc --> Llmdoc
-    Llmdoc --> Grep{需要更多?}
-    Grep -->|是| GrepSearch[Grep/Glob]
-    Grep -->|否| End([返回结果])
-    GrepSearch --> End
-    Auggie --> End
 ```
 
 ### 📝 DOCUMENT 工作流
@@ -164,49 +158,27 @@ flowchart LR
 | 阶段 | 名称 / Name | Agent | 调用方式 | 说明 |
 |:---|:---|:---|:---|:---|
 | 0 | llmdoc Reading / 读取文档 | 主 Agent | - | 读取项目文档 |
-| 1 | Discovery / 需求发现 | 自然语言: investigator | - | 理解需求（auggie优先策略）|
-| 2 | Exploration / 探索研究 | `Explore` x3 | Task 并行 | 研究相关内容/示例 |
-| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - | **充分沟通需求 + 确认/调整工作流类型** |
+| 1 | Discovery / 需求发现 | 自然语言: investigator | - | 理解需求 |
+| 2 | Exploration / 探索研究 | `Explore` x3 | Task 并行 | 研究相关内容 |
+| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - | **确认/调整工作流类型** |
 | 6 | Draft / 起草文档 | 主 Agent | - | **起草文档/方案** |
 | 7 | Refine / 完善内容 | 主 Agent | - | **完善内容** |
 | 8 | Review / 质量审查 | `general-purpose` | Task | 审查质量 |
 | 9 | Summary / 完成总结 | 自然语言: investigator | - | 完成总结 |
 
-**调用方式说明**:
-- **Task 并行**: 使用 `Task(subagent_type="...", ...)` 真正并行
-- **自然语言**: "使用 investigator 子代理..."（遵循 auggie/llmdoc 策略）
-
-**设计权衡**:
-- Phase 1 使用 `investigator`：保持 auggie → llmdoc → Grep 分层回退策略
-- Phase 2 使用 `Explore` 并行：牺牲一些策略换取真正的并行速度
-- Phase 9 使用 `investigator`：确保输出格式简洁（<150行）
-
-**关键差异**:
-- Phase 6: **起草**文档
-- Phase 7: **完善**内容
-- Phase 3 必须充分澄清需求后再动笔
-
-**跳过的阶段**: Phase 4 (Architecture), Phase 5 (Spec)
-
 ### 🔧 CODE_SIMPLE 工作流
 
 **适用**: Bug 修复、小修改、单文件变更
 
-| 阶段 | 名称 / Name | Agent | 调用方式 | 跳过 |
-|:---|:---|:---|:---|:---:|
-| 0 | llmdoc Reading / 读取文档 | 主 Agent | - | - |
-| 1 | Discovery / 需求发现 | 自然语言: investigator | - | - |
-| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - | Phase 2, 4, 5 |
-| 6 | TDD Red / 编写测试 | 自然语言: tdd-guide | - | - |
-| 7 | TDD Green / 编写实现 | 自然语言: worker | - | - |
-| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `general-purpose` | Task 并行 | - |
-| 9 | Summary / 完成总结 | 自然语言: investigator | - | - |
-
-**调用方式说明**:
-- **Task 并行**: Phase 8 使用 `Task(subagent_type="code-simplifier:code-simplifier", ...)` 等
-- **自然语言**: "使用 [agent] 子代理..."
-
-**跳过的阶段**: Phase 2 (Exploration), Phase 4 (Architecture), Phase 5 (Spec)
+| 阶段 | 名称 / Name | Agent | 调用方式 |
+|:---|:---|:---|:---|
+| 0 | llmdoc Reading / 读取文档 | 主 Agent | - |
+| 1 | Discovery / 需求发现 | 自然语言: investigator | - |
+| 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - |
+| 6 | TDD Red / 编写测试 | 自然语言: tdd-guide | - |
+| 7 | TDD Green / 编写实现 | 自然语言: worker | - |
+| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` | Task 并行 |
+| 9 | Summary / 完成总结 | 自然语言: investigator | - |
 
 ### 🚀 CODE_COMPLEX 工作流
 
@@ -218,65 +190,111 @@ flowchart LR
 | 1 | Discovery / 需求发现 | 自然语言: investigator | - | - |
 | 2 | Exploration / 探索研究 | `Explore` x3 | Task | 是 |
 | 3 | Clarification / 澄清确认 | 主 Agent + AskUser | - | - |
-| 4 | Architecture / 架构设计 | 自然语言: architect x2 + investigator | 伪并行 | - |
+| 4 | Architecture / 架构设计 | 自然语言: architect x2 | 串行 | - |
 | **5** | **Spec / 规范文档** | 自然语言: spec-guide | - | **-** |
 | 6 | TDD Red / 编写测试 | 自然语言: tdd-guide | - | - |
 | 7 | TDD Green / 编写实现 | 自然语言: worker | - | - |
-| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` + `general-purpose` | Task | 是 |
+| 8 | Refactor+Review / 重构审查 | `code-simplifier` + `security-guidance` | Task | 是 |
 | 9 | Summary / 完成总结 | 自然语言: investigator | - | - |
-
-**调用方式说明**:
-- **Task 并行**: Phase 2 使用 `Task(subagent_type="Explore", ...)` x3（牺牲策略换速度）
-- **伪并行**: Phase 4 使用自然语言串行调用（保持自定义架构规则）
-- **Task 并行**: Phase 8 使用 `Task(subagent_type="code-simplifier:code-simplifier", ...)` 等
-- **自然语言**: "使用 architect/investigator/spec-guide/tdd-guide/worker 子代理..."
-
-**设计权衡**:
-- Phase 1/9 使用 `investigator`：保持 auggie → llmdoc → Grep 策略
-- Phase 2 使用 `Explore` 并行：探索阶段可以牺牲策略换速度
-- Phase 4 使用 `architect`：架构设计需要自定义规则，选择规则而非并行
-- Phase 5/6/7 使用自定义 agents：保持 TDD/SpecDD 流程完整性
 
 ## 硬约束
 
 1. **Phase 0 强制**: 必须优先读取 llmdoc，不存在时自动生成
 2. **代码搜索分层回退**: auggie (推荐) → llmdoc + Grep (备选)
-3. **智能分流**: Phase 1 后自动判断任务类型（DOCUMENT / CODE_SIMPLE / CODE_COMPLEX）
+3. **智能分流**: Phase 1 后自动判断任务类型
 4. **Phase 3 不可跳过**: 必须澄清所有疑问 + **确认/调整工作流类型**
 5. **DOCUMENT 工作流**: Phase 6 起草，Phase 7 完善，**先充分沟通再动笔**
 6. **CODE 工作流 Phase 6 TDD 强制**: 必须先写测试
 7. **并行优先**: 能并行的任务必须并行执行
-8. **状态持久化**: 每个阶段后自动更新状态文件（无需确认）
-9. **选项式编程**: 使用 AskUserQuestion 展示选项
-10. **文档更新询问**: Phase 8 必须询问
+8. **状态持久化**: 每个阶段后使用 Go 引擎更新状态
 
-## 循环状态管理
+## Go 引擎命令
 
-**自动化**: 每个阶段后自动更新 `.claude/gclm.{task_id}.local.md` frontmatter，无需用户确认：
+### 工作流管理
 
-```yaml
-current_phase: <下一阶段编号>
-phase_name: "<下一阶段名称>"
+```bash
+# 一键开始工作流（创建任务 + 获取第一阶段）
+~/.gclm-flow/gclm-engine workflow start "<prompt>" --json
+
+# 获取当前应该执行的阶段
+~/.gclm-flow/gclm-engine task current <task-id> --json
+
+# 获取完整执行计划
+~/.gclm-flow/gclm-engine task plan <task-id> --json
+
+# 完成阶段
+~/.gclm-flow/gclm-engine task complete <task-id> <phase-id> --output "<output>" --json
+
+# 标记阶段失败
+~/.gclm-flow/gclm-engine task fail <task-id> <phase-id> --error "<error>" --json
+
+# 列出任务阶段
+~/.gclm-flow/gclm-engine task phases <task-id>
+
+# 列出所有任务
+~/.gclm-flow/gclm-engine task list
 ```
 
-**状态更新的自动化原因**:
-- 状态文件是内部元数据，不是代码
-- 更新是确定性的（阶段完成 → 状态更新）
-- 不影响代码质量或安全性
+### 阶段执行流程
 
-**仍需授权的场景**:
-- Phase 3: **工作流类型确认/调整**（自动检测可能有误）
-- Phase 4 (CODE_COMPLEX): Architecture 设计方案审批
-- Phase 8: 文档更新询问
+每个阶段执行时：
 
-当所有 9 阶段完成，输出完成信号：
+1. **开始阶段**:
+   ```bash
+   ~/.gclm-flow/gclm-engine task current <task-id> --json
+   ```
+   获取当前阶段信息（agent, model, 等）
+
+2. **执行阶段**: 调用相应的 Agent 或 Task
+
+3. **完成阶段**:
+   ```bash
+   ~/.gclm-flow/gclm-engine task complete <task-id> <phase-id> --output "<阶段输出>" --json
+   ```
+
+4. **进入下一阶段**: 重复步骤 1
+
+## Agent 体系
+
+| Agent | 职责 | 模型 | 阶段 |
+|:---|:---|:---|:---|
+| `investigator` | 探索、分析、总结 | Haiku 4.5 | 1, 2, 9 |
+| `architect` | 架构设计、方案权衡 | Opus 4.5 | 4 |
+| `spec-guide` | SpecDD 规范文档编写 | Opus 4.5 | 5 |
+| `tdd-guide` | TDD 流程指导 | Sonnet 4.5 | 6 |
+| `worker` | 执行明确定义的任务 | Sonnet 4.5 | 7 |
+| `code-simplifier` | 代码简化重构 | Sonnet 4.5 | 8 |
+| `security-guidance` | 安全审查 | Sonnet 4.5 | 8 |
+| `code-reviewer` | 代码审查 | Sonnet 4.5 | 8 |
+
+## 并行执行示例
+
+### Phase 2: Exploration (3 个并行任务)
+
 ```
-<promise>GCLM_WORKFLOW_COMPLETE</promise>
+并行启动 3 个 Task:
+- Task 1: investigator - 相似功能搜索
+- Task 2: investigator - 架构映射
+- Task 3: investigator - 代码规范识别
 ```
 
-提前退出：在状态文件中设置 `active: false`。
+### Phase 4: Architecture (2 个方案设计)
 
----
+```
+串行执行（保持自定义规则）:
+1. architect 方案 A
+2. architect 方案 B
+3. 展示方案 + AskUserQuestion
+```
+
+### Phase 8: Refactor+Review (3 个并行)
+
+```
+并行启动:
+- Task 1: code-simplifier - 代码简化
+- Task 2: security-guidance - 安全审查
+- Task 3: code-reviewer - 代码审查
+```
 
 ## Phase 0: llmdoc Reading + 代码搜索分层回退
 
@@ -290,16 +308,10 @@ phase_name: "<下一阶段名称>"
    - 存在 → 直接读取
    - 不存在 → **自动生成（不需要用户确认，直接执行）**
 
-3. **自动生成 llmdoc（NON-NEGOTIABLE - 无需确认）**
+3. **自动生成 llmdoc**
    - 使用 `investigator` agent 扫描代码库
    - 生成 `llmdoc/index.md`
-   - 生成 `llmdoc/overview/` 基础文档（project.md, tech-stack.md, structure.md）
-   - **注意：这是初始化步骤，自动执行，不要询问用户**
-
-4. **继续读取流程**
-   - 读取 `llmdoc/index.md`
-   - 读取 `llmdoc/overview/*.md` 全部
-   - 根据任务读取 `llmdoc/architecture/*.md`
+   - 生成 `llmdoc/overview/` 基础文档
 
 ### 代码搜索方法
 
@@ -313,130 +325,52 @@ phase_name: "<下一阶段名称>"
 npm install -g @augmentcode/auggie@prerelease
 ```
 
-### 生成约束
+## 循环状态管理
 
-- **最小化生成**: 只生成基础文档
-- **增量完善**: 后续可在 Phase 8 补充
-- **保持简洁**: 避免过度生成
-- **直接执行**: llmdoc 不存在时自动生成，**不询问用户**
+### 状态文件
 
-## 并行执行示例
+创建 `.claude/gclm-engine.local.md`:
 
-### Phase 2: Exploration (3 个并行任务)
-```bash
-codeagent-wrapper --parallel <<'EOF'
----TASK---
-id: p2_similar_features
-agent: gclm-investigator
-workdir: .
----CONTENT---
-Find similar features, trace end-to-end.
+```markdown
+---
+active: true
+task_id: task-xxx
+workflow_type: CODE_SIMPLE
+current_phase: 0
+total_phases: 8
+phase_name: "discovery"
+completion_promise: "<promise>GCLM_WORKFLOW_COMPLETE"
+---
 
----TASK---
-id: p2_architecture
-agent: gclm-investigator
-workdir: .
----CONTENT---
-Map architecture for relevant subsystem.
+# gclm-engine 任务状态
 
----TASK---
-id: p2_conventions
-agent: gclm-investigator
-workdir: .
----CONTENT---
-Identify testing patterns and conventions.
-EOF
+**Task ID**: task-xxx
+**Workflow**: CODE_SIMPLE
+**当前阶段**: 0 - Discovery / 需求发现
+**总阶段数**: 8
 ```
 
-### Phase 4: Architecture (2 个并行方案 + 1 个测试策略)
+### 状态更新
 
-**重要**: 必须等待 agents 完成并展示方案后，再询问用户选择
+每个阶段完成后：
+1. 调用 `~/.gclm-flow/gclm-engine task complete` 更新数据库
+2. 更新本地状态文件的 `current_phase`
+3. 调用 `~/.gclm-flow/gclm-engine task current` 获取下一阶段
 
-```bash
-# 步骤 1: 并行启动 3 个 agents
-codeagent-wrapper --parallel <<'EOF'
----TASK---
-id: p4_minimal
-agent: gclm-architect
-workdir: .
----CONTENT---
-Propose minimal-change architecture.
+### 完成信号
 
----TASK---
-id: p4_pragmatic
-agent: gclm-architect
-workdir: .
----CONTENT---
-Propose pragmatic-clean architecture.
-
----TASK---
-id: p4_test_strategy
-agent: gclm-investigator
-workdir: .
----CONTENT---
-Analyze testing strategy for this change.
-EOF
-
-# 步骤 2: 等待完成后，使用 TaskOutput 获取每个 agent 的输出
-TaskOutput("p4_minimal", block=true)
-TaskOutput("p4_pragmatic", block=true)
-TaskOutput("p4_test_strategy", block=true)
-
-# 步骤 3: 格式化展示方案给用户
-# (将 3 个方案以清晰的格式展示)
-
-# 步骤 4: 等待用户阅读后，使用 AskUserQuestion 询问选择
+当所有阶段完成，输出：
 ```
-
-**关于 llmdoc**: Phase 4 不会自动生成/更新 llmdoc，文档更新在 Phase 8 询问用户后进行
-
-## Agent 体系
-
-| Agent | 职责 | 模型 |
-|:---|:---|:---|
-| `investigator` | 探索、分析、总结 | Haiku 4.5 |
-| `architect` | 架构设计、方案权衡 | Opus 4.5 |
-| `worker` | 执行明确定义的任务 | Sonnet 4.5 |
-| `tdd-guide` | TDD 流程指导 | Sonnet 4.5 |
-| `spec-guide` | SpecDD 规范文档编写 | Opus 4.5 |
-| `code-simplifier` | 代码简化重构 | Sonnet 4.5 |
-| `security-guidance` | 安全审查 | Sonnet 4.5 |
-| `code-reviewer` | 代码审查 | Sonnet 4.5 |
-
-## 上下文包模板
-
-```text
-## Original User Request
-<verbatim request>
-
-## Context Pack
-- Phase: <0-9 name>
-- Decisions: <requirements/constraints/choices>
-- Investigator output: <paste or "None">
-- Architect output: <paste or "None">
-- Worker output: <paste or "None">
-- Tdd-guide output: <paste or "None">
-- Code-simplifier output: <paste or "None">
-- Security-guidance output: <paste or "None">
-- Code-reviewer output: <paste or "None">
-- Open questions: <list or "None">
-
-## Current Task
-<specific task>
-
-## Acceptance Criteria
-<checkable outputs>
+<promise>GCLM_WORKFLOW_COMPLETE</promise>
 ```
 
 ## Stop Hook
 
 注册 Stop Hook 后：
-1. 创建 `.claude/gclm.{task_id}.local.md` 状态文件
-2. 每个阶段后更新 `current_phase`
-3. Stop hook 检查状态，未完成时阻止退出
-4. 完成时输出 `<promise>GCLM_WORKFLOW_COMPLETE</promise>`
-
-手动退出：在状态文件中设置 `active` 为 `false`。
+1. Go 引擎维护任务状态（SQLite）
+2. 每个阶段后调用 Go 引擎更新状态
+3. 本地状态文件记录当前任务 ID
+4. 完成时输出完成信号
 
 ---
 
@@ -444,29 +378,11 @@ TaskOutput("p4_test_strategy", block=true)
 
 ### 安装
 ```bash
-# 全局安装 auggie
 npm install -g @augmentcode/auggie@prerelease
 ```
 
-### MCP 工具
-Claude Code 可直接调用 auggie 提供的 MCP 工具进行：
+### 使用
+Claude Code 可直接调用 auggie MCP 工具进行：
 - 自然语言代码搜索
 - 代码上下文增强
 - 语义代码理解
-
-### 使用示例
-```javascript
-// Claude Code 自动调用，无需手动命令
-// 搜索 "用户认证相关的代码"
-// auggie 会自动理解意图并返回相关代码片段和上下文
-```
-
-### 配置
-```bash
-# 环境变量（可选）
-export AUGMENT_API_TOKEN="your-token"
-export AUGMENT_API_URL="https://acemcp.heroman.wtf/relay/"
-```
-
-### 项目支持
-auggie 支持多种编程语言和文件类型，提供智能代码搜索和上下文理解。

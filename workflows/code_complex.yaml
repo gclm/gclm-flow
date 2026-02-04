@@ -1,0 +1,85 @@
+name: code_complex
+display_name: 复杂功能开发工作流
+description: 用于新功能开发、模块开发、跨文件重构等复杂任务
+version: "1.0"
+workflow_type: CODE_COMPLEX
+
+nodes:
+  - ref: discovery
+    display_name: 需求发现
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 300
+
+  - ref: exploration
+    display_name: 探索研究
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 600
+    depends_on:
+      - discovery
+
+  - ref: clarification
+    display_name: 澄清确认
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 300
+    depends_on:
+      - exploration
+
+  - ref: architecture
+    display_name: 架构设计
+    agent: architect
+    model: opus
+    required: true
+    timeout: 900
+    depends_on:
+      - clarification
+
+  - ref: spec
+    display_name: 规范文档
+    agent: spec-guide
+    model: opus
+    required: true
+    timeout: 900
+    depends_on:
+      - architecture
+
+  - ref: tdd_red
+    display_name: TDD Red
+    agent: tdd-guide
+    model: sonnet
+    required: true
+    timeout: 600
+    depends_on:
+      - spec
+
+  - ref: tdd_green
+    display_name: TDD Green
+    agent: worker
+    model: sonnet
+    required: true
+    timeout: 1200
+    depends_on:
+      - tdd_red
+
+  - ref: refactor_review
+    display_name: 重构审查
+    agent: code-reviewer
+    model: sonnet
+    required: true
+    timeout: 600
+    depends_on:
+      - tdd_green
+
+  - ref: summary
+    display_name: 完成总结
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 180
+    depends_on:
+      - refactor_review

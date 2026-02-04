@@ -1,0 +1,149 @@
+name: Build and Release gclm-engine
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+env:
+  GO_VERSION: '1.21'
+
+jobs:
+  build:
+    name: Build gclm-engine
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - goos: darwin
+            goarch: amd64
+            suffix: darwin-amd64
+          - goos: darwin
+            goarch: arm64
+            suffix: darwin-arm64
+          - goos: linux
+            goarch: amd64
+            suffix: linux-amd64
+          - goos: linux
+            goarch: arm64
+            suffix: linux-arm64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "$GO_VERSION"
+
+      - name: Build
+        env:
+          GOOS: "${{ matrix.goos }}"
+          GOARCH: "${{ matrix.goarch }}"
+          CGO_ENABLED: 1
+        run: |
+          cd gclm-engine
+          make build
+          mkdir -p ../dist
+          cp build/gclm-engine ../dist/gclm-engine-${{ matrix.suffix }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: gclm-engine-${{ matrix.suffix }}
+          path: dist/gclm-engine-${{ matrix.suffix }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Set executable permissions
+        run: |
+          for f in dist/gclm-engine-darwin-* dist/gclm-engine-linux-*; do
+            if [ -f "$f" ]; then
+              chmod +x "$f"
+            fi
+          done
+
+      - name: Generate checksums and release notes
+        id: release_info
+        run: |
+          # 生成 checksums
+          cd dist
+          sha256sum gclm-engine-* > checksums.txt
+          cat checksums.txt
+          cd ..
+
+          # 生成 release body
+          cat > release_body.md << 'EOF'
+          ## gclm-engine ${{ github.ref_name }}
+
+          ### 快速安装
+
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/gclm/gclm-flow/main/install.sh | bash
+          ```
+
+          ### 下载
+
+          | 平台 | 架构 | 下载 | SHA256 |
+          |------|------|------|--------|
+          EOF
+
+          # 添加每个平台的下载链接和 checksum
+          for suffix in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
+            if [ -f "dist/gclm-engine-$suffix" ]; then
+              sha256=$(sha256sum "dist/gclm-engine-$suffix" | cut -d' ' -f1)
+
+              case "$suffix" in
+                darwin-amd64)   platform="macOS" arch="Intel (amd64)" ;;
+                darwin-arm64)   platform="macOS" arch="Apple Silicon (arm64)" ;;
+                linux-amd64)    platform="Linux" arch="amd64" ;;
+                linux-arm64)    platform="Linux" arch="arm64" ;;
+              esac
+
+              echo "| $platform | $arch | \`gclm-engine-$suffix\` | \`$sha256\` |" >> release_body.md
+            fi
+          done
+
+          cat >> release_body.md << 'EOF'
+
+          ### 验证
+
+          ```bash
+          # 下载 checksums.txt
+          curl -fsSL -O https://github.com/gclm/gclm-flow/releases/download/${{ github.ref_name }}/checksums.txt
+
+          # 验证下载的文件
+          sha256sum -c checksums.txt
+          ```
+          EOF
+
+          cat release_body.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/gclm-engine-*
+            dist/checksums.txt
+          body_path: release_body.md
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

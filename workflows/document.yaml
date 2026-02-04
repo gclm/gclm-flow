@@ -1,0 +1,68 @@
+name: document
+display_name: 文档编写工作流
+description: 用于编写技术文档、设计方案、需求分析等文档类任务
+version: "1.0"
+workflow_type: DOCUMENT
+
+nodes:
+  - ref: discovery
+    display_name: 需求发现
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 300
+
+  - ref: exploration
+    display_name: 探索研究
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 600
+    depends_on:
+      - discovery
+
+  - ref: clarification
+    display_name: 澄清确认
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 300
+    depends_on:
+      - exploration
+
+  - ref: draft
+    display_name: 起草文档
+    agent: architect
+    model: opus
+    required: true
+    timeout: 1200
+    depends_on:
+      - clarification
+
+  - ref: refine
+    display_name: 完善内容
+    agent: worker
+    model: sonnet
+    required: true
+    timeout: 600
+    depends_on:
+      - draft
+
+  - ref: review
+    display_name: 质量审查
+    agent: code-reviewer
+    model: sonnet
+    required: false
+    timeout: 300
+    depends_on:
+      - refine
+
+  - ref: summary
+    display_name: 完成总结
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 180
+    depends_on:
+      - draft
+      - review

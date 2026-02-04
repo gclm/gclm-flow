@@ -1,0 +1,108 @@
+# CODE_SIMPLE Pipeline Configuration
+# 用于 Bug 修复、小修改、单文件变更的工作流
+# PoC 版本 - 只包含核心阶段
+
+name: code_simple
+display_name: "CODE_SIMPLE 工作流"
+description: "Bug修复、小修改、单文件变更的标准流程"
+version: "0.1.0-poc"
+author: "gclm-flow"
+
+# 工作流类型标识
+workflow_type: "CODE_SIMPLE"
+
+# 节点配置
+nodes:
+  # Phase 1: Discovery - 需求发现
+  - ref: discovery
+    display_name: "Discovery / 需求发现"
+    agent: investigator
+    model: haiku
+    timeout: 60
+    required: true
+    config:
+      output_format: structured
+
+  # Phase 2: Clarification - 澄清确认 (跳过 Phase 2 Exploration)
+  - ref: clarification
+    display_name: "Clarification / 澄清确认"
+    agent: investigator
+    model: haiku
+    depends_on: [discovery]
+    timeout: 60
+    required: true
+    config:
+      use_questions: true
+
+  # Phase 3: TDD Red - 编写测试
+  - ref: tdd_red
+    display_name: "TDD Red / 编写测试"
+    agent: tdd-guide
+    model: sonnet
+    depends_on: [clarification]
+    timeout: 120
+    required: true
+    config:
+      test_framework: detect
+      coverage_target: 80
+
+  # Phase 4: TDD Green - 编写实现
+  - ref: tdd_green
+    display_name: "TDD Green / 编写实现"
+    agent: worker
+    model: sonnet
+    depends_on: [tdd_red]
+    timeout: 180
+    required: true
+    config:
+      minimal_implementation: true
+
+  # Phase 5: Refactor+Review - 重构审查 (并行执行)
+  - ref: code_simplifier
+    display_name: "Code Simplifier / 代码简化"
+    agent: code-simplifier
+    model: sonnet
+    depends_on: [tdd_green]
+    timeout: 120
+    required: false
+    parallel_group: review
+
+  - ref: security_guidance
+    display_name: "Security Guidance / 安全审查"
+    agent: security-guidance
+    model: sonnet
+    depends_on: [tdd_green]
+    timeout: 90
+    required: false
+    parallel_group: review
+
+  - ref: code_reviewer
+    display_name: "Code Reviewer / 代码审查"
+    agent: code-reviewer
+    model: sonnet
+    depends_on: [tdd_green]
+    timeout: 90
+    required: true
+    parallel_group: review
+
+  # Phase 6: Summary - 完成总结
+  - ref: summary
+    display_name: "Summary / 完成总结"
+    agent: investigator
+    model: haiku
+    depends_on: [code_reviewer]
+    timeout: 60
+    required: true
+    config:
+      generate_report: true
+
+# 完成信号配置
+completion:
+  signal: "<promise>GCLM_WORKFLOW_COMPLETE</promise>"
+  final_status: completed
+
+# 错误处理配置
+error_handling:
+  max_retries: 1
+  retry_on: [timeout, api_error]
+  continue_on_non_required: true
