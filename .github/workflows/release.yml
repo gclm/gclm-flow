@@ -42,7 +42,7 @@ jobs:
         uses: actions/setup-go@v5
         with:
           go-version: "${{ env.GO_VERSION }}"
-          cache: "auto"
+          cache: true
           cache-dependency-path: gclm-engine/go.sum
 
       - name: Install build dependencies (Linux)
