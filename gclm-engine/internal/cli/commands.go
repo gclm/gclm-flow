@@ -56,7 +56,7 @@ func New(configDir string) (*CLI, error) {
 	}
 
 	// Initialize pipeline parser (still needed for YAML loading operations)
-	parser := workflow.NewParser(configDir)
+	parser := workflow.NewParser(workflowsDir)
 
 	// Initialize repository
 	repo := db.NewRepository(database)

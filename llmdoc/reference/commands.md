@@ -2,36 +2,74 @@
 
 ## gclm-engine CLI 命令
 
+### init - 初始化配置
+
+```bash
+# 初始化配置（导出内置工作流和配置）
+gclm-engine init
+
+# 强制覆盖现有文件
+gclm-engine init --force
+
+# 静默初始化（无输出）
+gclm-engine init --silent
+```
+
 ### workflow - 工作流管理
 
 ```bash
-# 列出所有工作流
+# 列出所有工作流（从数据库）
 gclm-engine workflow list
+gclm-engine workflow list --json
 
 # 验证工作流配置
 gclm-engine workflow validate <workflow.yaml>
 
-# 安装自定义工作流
-gclm-engine workflow install <workflow.yaml>
+# 安装自定义工作流（复制到 workflows/）
+gclm-engine workflow install <workflow.yaml> [--name <custom-name>]
+
+# 卸载自定义工作流
+gclm-engine workflow uninstall <workflow-name>
 
 # 查看工作流信息
 gclm-engine workflow info <workflow-name>
 
-# 启动工作流（自动检测类型）
-gclm-engine workflow start "<任务描述>"
+# 导出工作流到 YAML
+gclm-engine workflow export <workflow-name> [output-file]
 
-# 启动指定类型的工作流
-gclm-engine workflow start "<任务描述>" --workflow document
+# 同步工作流 YAML 到数据库（草稿 → 正式）
+gclm-engine workflow sync                           # 同步所有
+gclm-engine workflow sync workflows/feat.yaml      # 同步单个
+gclm-engine workflow sync --force                  # 强制同步
+
+# 启动工作流
+gclm-engine workflow start "<任务描述>" --workflow <name>
 ```
 
 ### task - 任务管理
 
 ```bash
-# 查看当前阶段
+# 创建任务（已废弃，使用 workflow start）
+gclm-engine task create "<提示>" --workflow-type CODE_SIMPLE
+
+# 查看任务详情
+gclm-engine task get <task-id>
+
+# 列出任务
+gclm-engine task list [--status completed] [--limit 20]
+
+# 查看当前阶段（下一步要执行的）
 gclm-engine task current <task-id>
+gclm-engine workflow next <task-id>  # 别名
+
+# 查看执行计划（所有阶段）
+gclm-engine task plan <task-id>
 
 # 查看所有阶段
 gclm-engine task phases <task-id>
+
+# 查看事件日志
+gclm-engine task events <task-id> [--limit 50]
 
 # 完成阶段
 gclm-engine task complete <task-id> <phase-id> --output "输出结果"
@@ -39,12 +77,33 @@ gclm-engine task complete <task-id> <phase-id> --output "输出结果"
 # 失败阶段
 gclm-engine task fail <task-id> <phase-id> --error "错误信息"
 
-# 查看任务详情
-gclm-engine task show <task-id>
+# 更新阶段状态
+gclm-engine task update <task-id> <phase-id> completed --output "..."
+gclm-engine task update <task-id> <phase-id> failed --error "..."
 
-# 列出任务
-gclm-engine task list [--status completed]
+# 导出状态文件（兼容旧版 skills）
+gclm-engine task export <task-id> <output-file>
+
+# 任务控制
+gclm-engine task pause <task-id>
+gclm-engine task resume <task-id>
+gclm-engine task cancel <task-id>
 ```
+
+### pipeline - 流水线管理（保留兼容）
+
+```bash
+# 列出流水线（实际列出 workflows）
+gclm-engine pipeline list
+
+# 查看流水线详情
+gclm-engine pipeline get <name>
+
+# 推荐流水线（已废弃，使用 workflow list --json）
+gclm-engine pipeline recommend "<提示>"
+```
+
+**注意**: `pipeline` 命令保留向后兼容，内部已重命名为 `workflow`。
 
 ### 其他命令
 
@@ -73,19 +132,36 @@ gclm-engine task current <task-id> --json
 
 ```json
 {
-  "id": "task-uuid",
-  "status": "running",
-  "current_phase": 2,
-  "total_phases": 6,
-  "next_phase": {
-    "id": "phase-uuid",
-    "name": "clarification",
-    "display_name": "Clarification / 澄清确认",
+  "task_id": "task-uuid",
+  "workflow": "document",
+  "workflow_type": "DOCUMENT",
+  "total_phases": 7,
+  "current_phase": {
+    "phase_id": "phase-uuid",
+    "phase_name": "discovery",
+    "display_name": "Discovery / 需求发现",
     "agent": "investigator",
     "model": "haiku",
+    "sequence": 1,
+    "required": true,
     "timeout": 60
   }
 }
+```
+
+**workflow list 输出**:
+
+```json
+[
+  {
+    "name": "document",
+    "display_name": "DOCUMENT 工作流",
+    "description": "文档编写、架构设计、需求分析",
+    "workflow_type": "DOCUMENT",
+    "version": "1.0.0",
+    "is_builtin": true
+  }
+]
 ```
 
 ---
@@ -104,10 +180,15 @@ gclm-engine task current <task-id> --json
 
 | 类型 | 检测关键词 | 阶段数 |
 |:---|:---|:---:|
-| 🔍 ANALYZE | 分析、诊断、审计、评估、检查 | 5 |
 | 📝 DOCUMENT | 文档、方案、设计、需求 | 7 |
 | 🔧 CODE_SIMPLE | bug、修复、error | 6 |
 | 🚀 CODE_COMPLEX | 功能、模块、开发 | 9 |
+| 🔍 ANALYZE | 分析、诊断、审计、评估 | 5 |
+
+**流程**:
+1. 调用 `workflow list --json` 获取所有工作流
+2. LLM 根据提示语义选择最匹配的工作流
+3. 调用 `workflow start "<提示>" --workflow <name>`
 
 **示例**:
 ```
@@ -191,14 +272,20 @@ Red (写测试) → Green (写实现) → Refactor (重构)
 | `/spec` | 高 | 架构设计 | architect + spec-guide + tdd-guide + worker |
 | `/llmdoc` | 低 | 文档更新 | investigator |
 
+**推荐**:
+- 新用户: 使用 `/gclm` (自动选择工作流)
+- 高级用户: 直接调用 `workflow start --workflow <name>`
+- 文档更新: 使用 `/llmdoc` 自动生成/更新文档
+
 ---
 
 ## 环境变量
 
 | 变量 | 默认值 | 说明 |
 |:---|:---|:---|
-| `GCLM_ENGINE_WORKFLOWS_DIR` | `~/.gclm-flow/workflows` | 工作流目录 |
+| `GCLM_ENGINE_CONFIG_DIR` | `~/.gclm-flow` | 配置目录 |
 | `GCLM_ENGINE_DB_PATH` | `~/.gclm-flow/gclm-engine.db` | 数据库路径 |
+| `GCLM_ENGINE_WORKFLOWS_DIR` | `~/.gclm-flow/workflows` | 工作流草稿目录 |
 | `GCLM_VERSION` | `latest` | 安装时使用的版本 |
 
 ---

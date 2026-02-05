@@ -6,7 +6,9 @@
 
 核心特性：
 - **Go 引擎**: 工作流编排和状态管理 (SQLite)
-- **YAML 工作流**: 可配置的工作流定义
+- **草稿/正式分离**: YAML 草稿 ↔ 数据库正式模型
+- **资源嵌入**: 零依赖部署 (embed.FS)
+- **Goose 迁移**: 数据库版本管理
 - **智能分流**: 自动判断任务类型 (DOCUMENT / CODE_SIMPLE / CODE_COMPLEX)
 - **多 Agent 并行**: 6 个自定义 Agent + 2 个官方插件 Agent
 - **代码搜索分层回退**: auggie (语义搜索) → llmdoc (结构化) → Grep (模式匹配)
@@ -21,7 +23,8 @@
 - [目录结构](overview/structure.md) - 文件组织说明
 
 ### 架构设计
-- [系统架构](architecture/system.md) - Go 引擎 + 工作流 + Agents
+- [系统架构](architecture/system.md) - Go 引擎 + 草稿/正式分离 + Agents
+- [资源嵌入](architecture/assets.md) - embed.FS + Goose 迁移
 - [工作流配置](architecture/workflows.md) - YAML 工作流定义
 - [Agent 体系](architecture/agents.md) - 自定义 Agent 和官方插件
 - [代码搜索](architecture/code-search.md) - 分层回退搜索策略
@@ -72,6 +75,8 @@
 | 组件 | 位置 | 用途 |
 |:---|:---|:---|
 | **Go 引擎** | `gclm-engine/` | 工作流编排、状态管理 |
+| **资源嵌入** | `embed.go`, `internal/assets/` | 零依赖部署 |
+| **数据库迁移** | `migrations/` | Goose 版本管理 |
 | **工作流定义** | `workflows/` | YAML 配置的工作流 |
 | **Skills** | `skills/gclm/` | Claude Code 集成入口 |
 | **Agents** | `agents/` | Agent 定义 |
@@ -85,9 +90,15 @@
 # 安装
 ./install.sh
 
+# 初始化 (自动执行，或手动)
+gclm-engine init
+
 # 使用
 gclm-engine workflow list
-gclm-engine workflow start "修复登录页面 bug"
+gclm-engine workflow start "修复登录页面 bug" --workflow code_simple
+
+# 同步工作流变更
+gclm-engine workflow sync
 ```
 
 ---
@@ -98,4 +109,9 @@ gclm-engine workflow start "修复登录页面 bug"
 用户请求 → gclm-engine (Go 引擎) → 工作流编排 → Agent 执行
     ↓              ↓                    ↓
  自然语言    SQLite 状态管理      多 Agent 并行
+
+┌─────────────────────────────────────────────────────────────┐
+│                    草稿/正式分离模型                         │
+│  草稿 (workflows/*.yaml) --sync→ 正式 (workflows 表)        │
+└─────────────────────────────────────────────────────────────┘
 ```

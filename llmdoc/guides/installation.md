@@ -3,6 +3,8 @@
 ## 前置要求
 
 - **Claude Code**: 已安装 Claude Code CLI
+- **Go**: 1.21+ (用于构建 gclm-engine)
+- **CGO**: 必需 (go-sqlite3 依赖)
 - **Bash/Zsh**: 支持 Bash 或 Zsh shell
 - **Git**: 用于版本控制 (可选)
 
@@ -33,8 +35,10 @@ cd gclm-flow-main
 
 安装脚本会：
 - 检查 Claude Code 目录
+- 构建 gclm-engine 二进制文件
+- 安装 gclm-engine 到 `~/.gclm-flow/`
+- 初始化配置 (`gclm-engine init`)
 - 复制 agents/ 到 `~/.claude/agents/`
-- 复制 commands/ 到 `~/.claude/commands/`
 - 复制 skills/ 到 `~/.claude/skills/`
 - 复制 rules/ 到 `~/.claude/rules/`
 - 复制 hooks/ 到 `~/.claude/hooks/`
@@ -79,20 +83,32 @@ which auggie
 
 ### 5. 验证安装
 
+#### 检查 gclm-engine
+
+```bash
+# 检查 gclm-engine 安装
+ls ~/.gclm-flow/
+# 应包含: gclm-engine, workflows/, gclm-engine.db
+
+# 测试 gclm-engine
+~/.gclm-flow/gclm-engine version
+# 应输出: gclm-engine v0.2.0
+
+# 列出工作流
+~/.gclm-flow/gclm-engine workflow list
+# 应包含: document, code_simple, code_complex, analyze
+```
+
 #### 检查文件
 
 ```bash
 # 检查 agents
 ls ~/.claude/agents/
-# 应包含: investigator.md, architect.md, worker.md, tdd-guide.md, spec-guide.md, code-reviewer.md
-
-# 检查 commands
-ls ~/.claude/commands/
-# 应包含: gclm.md, investigate.md, tdd.md, spec.md, llmdoc.md
+# 应包含: investigator.md, architect.md, worker.md, tdd-guide.md, spec-guide.md, code-reviewer.md, llmdoc.md
 
 # 检查 skills
 ls ~/.claude/skills/
-# 应包含: gclm/, file-naming-helper/
+# 应包含: gclm/, llmdoc/
 
 # 检查 hooks
 ls ~/.claude/hooks/
@@ -146,6 +162,43 @@ chmod +x install.sh
 
 ---
 
+### 问题: Go 编译失败
+
+**可能原因**:
+1. CGO 未安装 (macOS: `xcode-select --install`)
+2. Go 版本过低 (需要 1.21+)
+
+**解决**:
+```bash
+# 检查 Go 版本
+go version
+
+# macOS: 安装 Xcode 命令行工具
+xcode-select --install
+
+# Linux: 安装 GCC
+sudo apt-get install build-essential  # Ubuntu/Debian
+sudo yum install gcc                   # CentOS/RHEL
+```
+
+---
+
+### 问题: gclm-engine 执行失败
+
+**解决**:
+```bash
+# 检查数据库初始化
+~/.gclm-flow/gclm-engine init
+
+# 检查工作流同步
+~/.gclm-flow/gclm-engine workflow sync
+
+# 查看详细错误
+~/.gclm-flow/gclm-engine workflow list --json
+```
+
+---
+
 ### 问题: hooks/ 目录为空
 
 **解决**: 检查 `install.sh` 中的路径是否正确
@@ -175,19 +228,15 @@ chmod +x install.sh
 ### 手动删除
 
 ```bash
+# 删除 gclm-engine
+rm -rf ~/.gclm-flow/
+
 # 删除 agents
 rm -rf ~/.claude/agents/gclm-*
 
-# 删除 commands
-rm -rf ~/.claude/commands/gclm.md
-rm -rf ~/.claude/commands/investigate.md
-rm -rf ~/.claude/commands/tdd.md
-rm -rf ~/.claude/commands/spec.md
-rm -rf ~/.claude/commands/llmdoc.md
-
 # 删除 skills
 rm -rf ~/.claude/skills/gclm
-rm -rf ~/.claude/skills/file-naming-helper
+rm -rf ~/.claude/skills/llmdoc
 
 # 删除 hooks
 rm -rf ~/.claude/hooks/notify.sh
@@ -196,7 +245,7 @@ rm -rf ~/.claude/hooks/stop-gclm-loop.sh
 # 删除 rules (如果只包含 gclm-flow 规则)
 rm -rf ~/.claude/rules/
 
-# 删除配置
+# 删除配置 (如果只包含 gclm-flow 配置)
 rm ~/.claude/CLAUDE.md
 ```
 

@@ -12,22 +12,38 @@ gclm-flow/
 │
 ├── gclm-engine/              # Go 引擎 (工作流编排和状态管理)
 │   ├── main.go               # 入口文件
+│   ├── embed.go              # 资源嵌入定义
 │   ├── go.mod                # Go 模块定义
+│   ├── gclm_engine_config.yaml # 默认配置
 │   ├── Makefile              # 构建脚本
+│   ├── migrations/           # 数据库迁移 (Goose)
+│   │   ├── 00001_baseline.sql
+│   │   ├── 00002_rename_pipeline_to_workflow.sql
+│   │   └── 00003_optimize_indexes.sql
+│   ├── workflows/            # 内置工作流定义
+│   │   ├── document.yaml
+│   │   ├── code_simple.yaml
+│   │   ├── code_complex.yaml
+│   │   └── analyze.yaml
 │   ├── internal/             # 内部包
+│   │   ├── assets/           # 资源嵌入管理
+│   │   │   └── embed.go      # 资源导出函数
 │   │   ├── cli/              # CLI 命令 (cobra)
 │   │   │   └── commands.go   # workflow/task 命令
+│   │   ├── config/           # 配置管理
+│   │   │   └── config.go     # 配置加载和验证
 │   │   ├── db/               # 数据库操作
-│   │   │   ├── database.go   # Database 初始化
+│   │   │   ├── database.go   # Database 初始化 (Goose)
 │   │   │   └── workflow.go   # Workflow Repository
-│   │   ├── pipeline/         # YAML 解析
-│   │   │   └── parser.go     # 工作流解析、依赖检查
-│   │   └── service/          # 业务逻辑
-│   │       ├── task.go       # 任务服务 (智能分流)
-│   │       └── errors.go     # 错误定义
+│   │   ├── errors/           # 错误定义
+│   │   │   └── messages.go   # 友好错误消息
+│   │   ├── service/          # 业务逻辑
+│   │   │   └── task.go       # 任务服务
+│   │   └── workflow/         # 工作流解析
+│   │       └── parser.go     # YAML 解析、依赖检查
 │   ├── pkg/                  # 共享包
 │   │   └── types/            # 类型定义
-│   │       ├── pipeline.go   # Pipeline 类型
+│   │       ├── workflow.go   # Workflow 类型
 │   │       └── types.go      # 通用类型
 │   └── test/                 # 测试文件
 │
@@ -108,20 +124,33 @@ Go 引擎，负责工作流编排和状态管理。
 | 子目录 | 职责 |
 |:---|:---|
 | `internal/cli/` | CLI 命令，输出 JSON 供 Skills 调用 |
-| `internal/db/` | SQLite 数据库操作 |
-| `internal/pipeline/` | YAML 工作流解析、依赖检查 |
+| `internal/assets/` | 资源嵌入管理 (migrations, workflows, config) |
+| `internal/config/` | 配置加载和验证 |
+| `internal/db/` | SQLite 数据库操作 + Goose 迁移 |
+| `internal/workflow/` | YAML 工作流解析、依赖检查 |
 | `internal/service/` | 任务服务（智能分流、阶段管理） |
+| `internal/errors/` | 友好错误消息定义 |
 | `pkg/types/` | 共享数据结构定义 |
+| `migrations/` | 数据库迁移文件 (Goose 格式) |
+| `workflows/` | 内置工作流 YAML 定义 |
 
 ### `workflows/`
 
 工作流定义目录，所有工作流 YAML 文件统一存放。
+
+**项目根目录 `workflows/`**: 开发中的工作流（草稿）
+**gclm-engine/workflows/**: 内置工作流（嵌入到二进制）
+
+**草稿/正式分离模型**:
+- 草稿: `~/.gclm-flow/workflows/*.yaml` (可编辑)
+- 正式: `workflows` 表 (数据库，通过 `workflow sync` 发布)
 
 | 文件 | 类型 | 阶段数 |
 |:---|:---|:---:|
 | `code_simple.yaml` | CODE_SIMPLE | 6 |
 | `code_complex.yaml` | CODE_COMPLEX | 9 |
 | `document.yaml` | DOCUMENT | 7 |
+| `analyze.yaml` | ANALYZE | 5 |
 | `examples/*.yaml` | 自定义 | 可变 |
 
 ### `agents/`

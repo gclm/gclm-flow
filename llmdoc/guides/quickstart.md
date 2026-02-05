@@ -11,6 +11,11 @@
 ```
 
 gclm-flow 会自动：
+1. 列出可用工作流 (`workflow list`)
+2. LLM 选择最匹配的工作流
+3. 创建任务并开始第一阶段
+
+**CODE_COMPLEX 工作流阶段**:
 1. 读取项目文档 (Phase 0)
 2. 分析需求并分类 (Phase 1)
 3. 探索相关代码 (Phase 2)
@@ -31,6 +36,11 @@ gclm-flow 会自动：
 ```
 /gclm <任务描述>
 ```
+
+**流程**:
+1. 调用 `workflow list --json` 获取所有工作流
+2. LLM 根据提示语义选择最匹配的工作流
+3. 调用 `workflow start "<提示>" --workflow <name>`
 
 **示例**:
 ```
@@ -172,16 +182,33 @@ Red (写测试) → Green (写实现) → Refactor (重构)
 
 ### 状态管理
 
-工作流状态保存在: `.claude/gclm.{task_id}.local.md`
+**数据库存储**: 工作流状态保存在 SQLite 数据库 (`~/.gclm-flow/gclm-engine.db`)
 
-**查看当前状态**:
+**查看当前任务**:
 ```bash
-cat .claude/gclm.*.local.md
+# 列出所有任务
+gclm-engine task list
+
+# 查看任务详情
+gclm-engine task get <task-id>
+
+# 查看当前阶段
+gclm-engine task current <task-id>
+
+# 导出状态文件 (兼容旧版)
+gclm-engine task export <task-id> .claude/gclm.local.md
 ```
 
-**强制退出**:
+**任务控制**:
 ```bash
-sed -i.bak 's/^active: true/active: false/' .claude/gclm.*.local.md
+# 暂停任务
+gclm-engine task pause <task-id>
+
+# 恢复任务
+gclm-engine task resume <task-id>
+
+# 取消任务
+gclm-engine task cancel <task-id>
 ```
 
 ---
@@ -191,9 +218,25 @@ sed -i.bak 's/^active: true/active: false/' .claude/gclm.*.local.md
 ### 问题: 工作流卡在某个阶段
 
 **解决**:
-1. 检查状态文件: `cat .claude/gclm.*.local.md`
-2. 查看当前阶段
-3. 如需强制退出，编辑状态文件设置 `active: false`
+```bash
+# 查看任务状态
+gclm-engine task get <task-id>
+
+# 查看当前阶段
+gclm-engine task current <task-id>
+
+# 查看所有阶段
+gclm-engine task phases <task-id>
+
+# 查看事件日志
+gclm-engine task events <task-id>
+```
+
+**如果需要强制跳过**:
+```bash
+# 标记阶段为完成
+gclm-engine task complete <task-id> <phase-id> --output "手动跳过"
+```
 
 ---
 
@@ -208,12 +251,25 @@ sed -i.bak 's/^active: true/active: false/' .claude/gclm.*.local.md
 
 ### 问题: llmdoc 不存在
 
-**解决**: 系统会自动生成，无需手动操作
+**解决**: 调用 `/llmdoc` 自动生成，无需手动操作
+
+### 问题: 工作流同步失败
+
+**解决**:
+```bash
+# 验证工作流配置
+gclm-engine workflow validate workflows/feat.yaml
+
+# 强制同步
+gclm-engine workflow sync --force
+```
 
 ---
 
 ## 下一步
 
-- 阅读 [架构文档](../architecture/workflow.md) 了解工作流详情
+- 阅读 [架构文档](../architecture/system.md) 了解系统架构
+- 阅读 [资源嵌入](../architecture/assets.md) 了解零依赖部署
+- 阅读 [工作流配置](../architecture/workflows.md) 了解工作流定义
 - 阅读 [Agent 文档](../architecture/agents.md) 了解各个 Agent
 - 阅读 [命令参考](../reference/commands.md) 了解所有命令

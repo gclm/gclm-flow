@@ -4,12 +4,38 @@
 
 | 类别 | 技术 | 版本 | 用途 |
 |:---|:---|:---|:---|
+| **编程语言** | Go | 1.21+ | gclm-engine 核心 |
+| **数据库** | SQLite | 3.x | 状态存储 (WAL 模式) |
+| **迁移工具** | Goose | 3.x | 数据库版本管理 |
+| **数据库驱动** | mattn/go-sqlite3 | - | SQLite CGO 驱动 |
+| **CLI 框架** | spf13/cobra | - | 命令行接口 |
+| **YAML 解析** | gopkg.in/yaml.v3 | - | 配置文件解析 |
+| **资源嵌入** | embed (Go 1.16+) | - | 零依赖部署 |
 | **脚本语言** | Bash/Zsh | - | 安装脚本、Hooks |
 | **配置格式** | Markdown | - | Agent 定义、规则文档 |
-| **配置格式** | YAML | - | 前置元数据 |
+| **配置格式** | YAML | - | 工作流定义、前置元数据 |
 | **配置格式** | JSON | - | 插件配置、MCP 设置 |
 | **插件系统** | Claude Code Plugin API | - | 插件开发和注册 |
 | **通信协议** | MCP (Model Context Protocol) | - | 外部工具通信 |
+
+---
+
+## Go 依赖
+
+### 核心依赖
+
+| 包 | 版本 | 用途 |
+|:---|:---|:---|
+| `github.com/spf13/cobra` | latest | CLI 框架 |
+| `github.com/mattn/go-sqlite3` | latest | SQLite 驱动 (CGO) |
+| `github.com/pressly/goose/v3` | v3.17.0+ | 数据库迁移 |
+| `gopkg.in/yaml.v3` | v3.0.1 | YAML 解析 |
+
+### 构建依赖
+
+- **Go 版本**: 1.21 或更高
+- **CGO**: 必需 (go-sqlite3)
+- **交叉编译**: 支持 Linux/macOS/Windows (ARM64/AMD64)
 
 ---
 

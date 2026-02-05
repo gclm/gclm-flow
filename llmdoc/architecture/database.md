@@ -4,6 +4,8 @@
 
 gclm-engine 使用 SQLite (WAL 模式) 存储工作流状态，数据库位置：`~/.gclm-flow/gclm-engine.db`
 
+**迁移系统**: 使用 Goose 进行数据库版本管理，迁移文件嵌入到二进制中。
+
 ---
 
 ## 数据库配置
@@ -51,10 +53,10 @@ CREATE TABLE workflows (
 ```sql
 CREATE TABLE tasks (
     id TEXT PRIMARY KEY,                   -- 任务 UUID
-    pipeline_id TEXT NOT NULL,             -- 工作流名称
+    workflow_id TEXT NOT NULL,            -- 工作流名称 (原 pipeline_id)
     prompt TEXT NOT NULL,                  -- 用户输入
     workflow_type TEXT NOT NULL,          -- DOCUMENT/CODE_SIMPLE/CODE_COMPLEX
-    status TEXT NOT NULL,                  -- pending/running/completed/failed
+    status TEXT NOT NULL DEFAULT 'created', -- pending/running/completed/failed
     current_phase INTEGER NOT NULL,       -- 当前阶段序号
     total_phases INTEGER NOT NULL,        -- 总阶段数
     result TEXT,                          -- 任务结果
@@ -135,6 +137,7 @@ CREATE TABLE events (
 │             │
 │ - name      │
 │ - config    │
+│ - is_builtin│
 └─────────────┘
        │
        │ 1:N
@@ -143,7 +146,7 @@ CREATE TABLE events (
 │   tasks     │────▶│ task_phases │
 │             │     │             │
 │ - id        │     │ - phase     │
-│ - pipeline  │     │ - agent     │
+│ - workflow  │     │ - agent     │
 │ - status    │     │ - output    │
 └─────────────┘     └─────────────┘
        │                     │
@@ -165,8 +168,8 @@ CREATE TABLE events (
 
 ```go
 type Database struct {
-    db *sql.DB
-    dsn string
+    conn *sql.DB
+    dsn  string
 }
 
 // 主要方法
@@ -174,7 +177,13 @@ func New(cfg *Config) (*Database, error)
 func (d *Database) Close() error
 func (d *Database) BeginTx() (*sql.Tx, error)
 func (d *Database) InitWorkflows(workflowsDir string) error
+func (d *Database) GetDB() *sql.DB
 ```
+
+**迁移系统**:
+- 使用 Goose (`github.com/pressly/goose/v3`)
+- 迁移文件嵌入到二进制 (`embed.FS`)
+- 自动检测并应用未执行的迁移
 
 ### WorkflowRepository (db/workflow.go)
 
@@ -185,9 +194,24 @@ type WorkflowRepository struct {
 
 // 主要方法
 func (r *WorkflowRepository) InitializeBuiltinWorkflows(workflowsDir string) error
+func (r *WorkflowRepository) GetWorkflow(name string) (*WorkflowRecord, error)
 func (r *WorkflowRepository) GetWorkflowByType(workflowType string) (*WorkflowRecord, error)
-func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error
 func (r *WorkflowRepository) ListWorkflows() ([]WorkflowRecord, error)
+func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error
+func (r *WorkflowRepository) UninstallWorkflow(name string) error
+```
+
+**WorkflowRecord**:
+```go
+type WorkflowRecord struct {
+    Name        string
+    DisplayName string
+    Description string
+    WorkflowType string
+    Version     string
+    IsBuiltin   bool
+    ConfigYAML  string
+}
 ```
 
 ### Repository (db/database.go)
@@ -257,3 +281,17 @@ db.SetConnMaxLifetime(time.Hour)
 2. **索引**: 常用查询字段建立索引
 3. **连接池**: 限制连接数，避免锁竞争
 4. **批量操作**: 阶段完成时批量更新
+5. **自动时间戳**: 使用触发器自动更新 `updated_at`
+6. **视图**: 提供常用查询的预定义视图
+   - `active_tasks`: 活跃任务视图
+   - `task_phases_summary`: 任务阶段汇总视图
+
+---
+
+## 迁移历史
+
+| 版本 | 文件 | 说明 |
+|:---|:---|:---|
+| 00001 | `baseline.sql` | 初始数据库结构 |
+| 00002 | `rename_pipeline_to_workflow.sql` | 重命名 pipeline → workflow |
+| 00003 | `optimize_indexes.sql` | 优化索引和添加视图 |
