@@ -14,15 +14,6 @@ const (
 	TaskStatusCancelled TaskStatus = "cancelled"
 )
 
-// WorkflowType represents the type of workflow
-type WorkflowType string
-
-const (
-	WorkflowTypeDocument     WorkflowType = "DOCUMENT"
-	WorkflowTypeCodeSimple   WorkflowType = "CODE_SIMPLE"
-	WorkflowTypeCodeComplex  WorkflowType = "CODE_COMPLEX"
-)
-
 // PhaseStatus represents the current state of a phase
 type PhaseStatus string
 
@@ -67,9 +58,9 @@ const (
 // Task represents a user task
 type Task struct {
 	ID           string        `json:"id" db:"id"`
-	PipelineID   string        `json:"pipeline_id" db:"pipeline_id"`
+	WorkflowID   string        `json:"workflow_id" db:"workflow_id"`
 	Prompt       string        `json:"prompt" db:"prompt"`
-	WorkflowType WorkflowType  `json:"workflow_type" db:"workflow_type"`
+	WorkflowType string  `json:"workflow_type" db:"workflow_type"`
 	Status       TaskStatus    `json:"status" db:"status"`
 	CurrentPhase int           `json:"current_phase" db:"current_phase"`
 	TotalPhases  int           `json:"total_phases" db:"total_phases"`
@@ -115,8 +106,8 @@ type Event struct {
 // CreateTaskRequest represents a request to create a new task
 type CreateTaskRequest struct {
 	Prompt       string       `json:"prompt" validate:"required"`
-	WorkflowType WorkflowType `json:"workflow_type,omitempty"`
-	PipelineID   string       `json:"pipeline_id,omitempty"`
+	WorkflowType string `json:"workflow_type,omitempty"`
+	WorkflowID   string       `json:"workflow_id,omitempty"`
 }
 
 // TaskResponse represents a task response with additional metadata
@@ -124,13 +115,4 @@ type TaskResponse struct {
 	Task    *Task       `json:"task"`
 	Phases  []*TaskPhase `json:"phases,omitempty"`
 	Events  []*Event    `json:"events,omitempty"`
-}
-
-// PipelineInfo represents basic pipeline information
-type PipelineInfo struct {
-	Name        string `json:"name"`
-	DisplayName string `json:"display_name"`
-	Description string `json:"description"`
-	Version     string `json:"version"`
-	WorkflowType string `json:"workflow_type"`
 }

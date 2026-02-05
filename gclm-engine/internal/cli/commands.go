@@ -10,7 +10,7 @@ import (
 
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/errors"
-	"github.com/gclm/gclm-flow/gclm-engine/internal/pipeline"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/service"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 	"github.com/spf13/cobra"
@@ -21,7 +21,7 @@ import (
 type CLI struct {
 	rootCmd   *cobra.Command
 	db        *db.Database
-	parser    *pipeline.Parser
+	parser    *workflow.Parser
 	repo      *db.Repository
 	taskSvc   *service.TaskService
 	configDir string
@@ -41,7 +41,7 @@ func New(configDir string) (*CLI, error) {
 	}
 
 	// Initialize pipeline parser (still needed for YAML loading operations)
-	parser := pipeline.NewParser(configDir)
+	parser := workflow.NewParser(configDir)
 
 	// Initialize repository
 	repo := db.NewRepository(database)
@@ -366,23 +366,21 @@ func (c *CLI) runTaskCreate(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
 
+	// workflow-type 或 pipeline 必需指定其一
+	if workflowType == "" && pipelineName == "" {
+		return fmt.Errorf("either --workflow-type or --pipeline is required")
+	}
+
 	var task *types.Task
 	var err error
 
 	// 使用 TaskService 创建任务
 	if pipelineName != "" {
-		// 如果指定了 pipeline 名称，需要先获取 workflow_type
-		pipe, err := c.parser.LoadPipeline(pipelineName)
-		if err != nil {
-			c.printFriendlyError(errors.PipelineLoadError(pipelineName, err))
-			return err
-		}
-		task, err = c.taskSvc.CreateTask(ctx, prompt, pipe.WorkflowType)
-	} else if workflowType != "" {
-		task, err = c.taskSvc.CreateTask(ctx, prompt, workflowType)
+		// 直接使用 pipeline 名称
+		task, err = c.taskSvc.CreateTask(ctx, prompt, pipelineName)
 	} else {
-		// 自动检测
-		task, err = c.taskSvc.CreateTask(ctx, prompt, "")
+		// 使用 workflow_type
+		task, err = c.taskSvc.CreateTask(ctx, prompt, workflowType)
 	}
 
 	if err != nil {
@@ -395,7 +393,7 @@ func (c *CLI) runTaskCreate(cmd *cobra.Command, args []string) error {
 		"task_id":       task.ID,
 		"status":        task.Status,
 		"workflow_type": task.WorkflowType,
-		"pipeline":      task.PipelineID,
+		"pipeline":      task.WorkflowID,
 		"total_phases":  task.TotalPhases,
 		"current_phase": task.CurrentPhase,
 		"message":       "Task created successfully",
@@ -498,8 +496,8 @@ func (c *CLI) runTaskCurrent(cmd *cobra.Command, args []string) error {
 
 	// 加载流水线获取阶段详情
 	task, _ := c.repo.GetTask(taskID)
-	pipe, _ := c.parser.LoadPipeline(task.PipelineID)
-	node := findNode(pipe, phase.PhaseName)
+	wf, _ := c.parser.LoadWorkflow(task.WorkflowID)
+	node := findNode(wf, phase.PhaseName)
 
 	output := map[string]interface{}{
 		"task_id":      taskID,
@@ -817,13 +815,18 @@ func (c *CLI) runTaskCancel(cmd *cobra.Command, args []string) error {
 // runWorkflowStart 一键开始工作流
 func (c *CLI) runWorkflowStart(cmd *cobra.Command, args []string) error {
 	prompt := args[0]
-	workflowType, _ := cmd.Flags().GetString("workflow-type")
+	workflow, _ := cmd.Flags().GetString("workflow")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
+
+	// workflow 参数必需（不再自动检测）
+	if workflow == "" {
+		return fmt.Errorf("workflow is required. Use --workflow <name> or let LLM select from list")
+	}
 
 	ctx := context.Background()
 
-	// 创建任务
-	task, err := c.taskSvc.CreateTask(ctx, prompt, workflowType)
+	// 创建任务（workflow 参数作为工作流名称）
+	task, err := c.taskSvc.CreateTask(ctx, prompt, workflow)
 	if err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
 	}
@@ -835,11 +838,12 @@ func (c *CLI) runWorkflowStart(cmd *cobra.Command, args []string) error {
 	}
 
 	// 加载流水线获取阶段详情
-	pipe, _ := c.parser.LoadPipeline(task.PipelineID)
-	node := findNode(pipe, phase.PhaseName)
+	wf, _ := c.parser.LoadWorkflow(task.WorkflowID)
+	node := findNode(wf, phase.PhaseName)
 
 	output := map[string]interface{}{
 		"task_id":       task.ID,
+		"workflow":      task.WorkflowID,
 		"workflow_type": task.WorkflowType,
 		"total_phases":  task.TotalPhases,
 		"current_phase": map[string]interface{}{
@@ -860,30 +864,30 @@ func (c *CLI) runWorkflowStart(cmd *cobra.Command, args []string) error {
 }
 
 // ============================================================================
-// Pipeline commands
+// Workflow commands
 // ============================================================================
 
 func (c *CLI) runPipelineList(cmd *cobra.Command, args []string) error {
-	pipelines, err := c.parser.ListPipelines()
+	workflows, err := c.parser.ListWorkflows()
 	if err != nil {
-		return fmt.Errorf("failed to list pipelines: %w", err)
+		return fmt.Errorf("failed to list workflows: %w", err)
 	}
 
 	jsonOutput, _ := cmd.Flags().GetBool("json")
-	c.printOutput(pipelines, jsonOutput)
+	c.printOutput(workflows, jsonOutput)
 	return nil
 }
 
 func (c *CLI) runPipelineGet(cmd *cobra.Command, args []string) error {
 	name := args[0]
 
-	pipeline, err := c.parser.LoadPipeline(name)
+	workflow, err := c.parser.LoadWorkflow(name)
 	if err != nil {
-		return fmt.Errorf("failed to load pipeline: %w", err)
+		return fmt.Errorf("failed to load workflow: %w", err)
 	}
 
 	jsonOutput, _ := cmd.Flags().GetBool("json")
-	c.printOutput(pipeline, jsonOutput)
+	c.printOutput(workflow, jsonOutput)
 	return nil
 }
 
@@ -891,20 +895,11 @@ func (c *CLI) runPipelineRecommend(cmd *cobra.Command, args []string) error {
 	prompt := args[0]
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 
-	// 检测工作流类型
-	detectedType := c.detectWorkflowType(prompt)
-
-	pipeline, err := c.parser.GetPipelineByWorkflowType(detectedType)
-	if err != nil {
-		return fmt.Errorf("failed to find pipeline: %w", err)
-	}
-
+	// 不再自动检测，提示用户使用 workflow list 查看
 	output := map[string]interface{}{
-		"workflow_type": detectedType,
-		"pipeline":      pipeline.Name,
-		"display_name":  pipeline.DisplayName,
-		"description":   pipeline.Description,
-		"total_nodes":   len(pipeline.Nodes),
+		"message": "Auto-detection removed. Please use 'gclm-engine workflow list --json' to see available workflows and let LLM select based on prompt.",
+		"prompt":  prompt,
+		"hint":    "Skills should call 'workflow list --json' and semantically match the best workflow",
 	}
 
 	c.printOutput(output, jsonOutput)
@@ -914,11 +909,6 @@ func (c *CLI) runPipelineRecommend(cmd *cobra.Command, args []string) error {
 // ============================================================================
 // 辅助方法
 // ============================================================================
-
-// detectWorkflowType 检测工作流类型（使用统一分类器）
-func (c *CLI) detectWorkflowType(prompt string) string {
-	return service.DetectWorkflowType(prompt)
-}
 
 // generateStateFileMarkdown 生成状态文件 Markdown 内容
 func (c *CLI) generateStateFileMarkdown(status *service.TaskStatusResponse, plan *service.ExecutionPlan) string {
@@ -1029,27 +1019,27 @@ func (c *CLI) runWorkflowValidate(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("file not found: %s", yamlFile)
 	}
 
-	pipeline, err := c.parser.LoadYAMLFile(yamlFile)
+	wf, err := c.parser.LoadYAMLFile(yamlFile)
 	if err != nil {
 		return fmt.Errorf("validation failed: %w", err)
 	}
 
-	if pipeline.Name == "" {
+	if wf.Name == "" {
 		return fmt.Errorf("'name' field is required")
 	}
 
-	if pipeline.WorkflowType == "" {
+	if wf.WorkflowType == "" {
 		return fmt.Errorf("'workflow_type' field is required")
 	}
 
-	if len(pipeline.Nodes) == 0 {
+	if len(wf.Nodes) == 0 {
 		return fmt.Errorf("workflow must have at least one node")
 	}
 
 	fmt.Printf("OK: Workflow validation successful\n")
-	fmt.Printf("  Name: %s\n", pipeline.Name)
-	fmt.Printf("  Type: %s\n", pipeline.WorkflowType)
-	fmt.Printf("  Nodes: %d\n", len(pipeline.Nodes))
+	fmt.Printf("  Name: %s\n", wf.Name)
+	fmt.Printf("  Type: %s\n", wf.WorkflowType)
+	fmt.Printf("  Nodes: %d\n", len(wf.Nodes))
 	fmt.Printf("\nTo install: gclm-engine workflow install %s\n", yamlFile)
 
 	return nil
@@ -1116,6 +1106,26 @@ func (c *CLI) runWorkflowList(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to list: %w", err)
 	}
 
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+
+	if jsonOutput {
+		// JSON 输出：返回工作流列表供 LLM 匹配
+		result := make([]map[string]interface{}, 0, len(workflows))
+		for _, w := range workflows {
+			result = append(result, map[string]interface{}{
+				"name":         w.Name,
+				"display_name": w.DisplayName,
+				"description":  w.Description,
+				"workflow_type": w.WorkflowType,
+				"version":      w.Version,
+				"is_builtin":   w.IsBuiltin,
+			})
+		}
+		c.printOutput(result, true)
+		return nil
+	}
+
+	// 文本格式输出
 	if len(workflows) == 0 {
 		fmt.Println("No workflows found")
 		return nil
@@ -1183,19 +1193,19 @@ func (c *CLI) runWorkflowInfo(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to load: %w", err)
 	}
 
-	// Parse YAML to get pipeline details
-	var pipeline types.Pipeline
-	if err := yaml.Unmarshal([]byte(wf.ConfigYAML), &pipeline); err != nil {
+	// Parse YAML to get workflow details
+	var wfDef types.Workflow
+	if err := yaml.Unmarshal([]byte(wf.ConfigYAML), &wfDef); err != nil {
 		return fmt.Errorf("failed to parse workflow: %w", err)
 	}
 
-	fmt.Printf("Workflow: %s\n", pipeline.Name)
-	fmt.Printf("  Display: %s\n", pipeline.DisplayName)
-	fmt.Printf("  Type: %s\n", pipeline.WorkflowType)
-	fmt.Printf("  Version: %s\n\n", pipeline.Version)
+	fmt.Printf("Workflow: %s\n", wfDef.Name)
+	fmt.Printf("  Display: %s\n", wfDef.DisplayName)
+	fmt.Printf("  Type: %s\n", wfDef.WorkflowType)
+	fmt.Printf("  Version: %s\n\n", wfDef.Version)
 
-	fmt.Printf("Nodes (%d):\n", len(pipeline.Nodes))
-	for i, node := range pipeline.Nodes {
+	fmt.Printf("Nodes (%d):\n", len(wfDef.Nodes))
+	for i, node := range wfDef.Nodes {
 		deps := ""
 		if len(node.DependsOn) > 0 {
 			deps = " (after: " + strings.Join(node.DependsOn, ", ") + ")"
@@ -1208,10 +1218,10 @@ func (c *CLI) runWorkflowInfo(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func findNode(pipeline *types.Pipeline, ref string) *types.PipelineNode {
-	for i := range pipeline.Nodes {
-		if pipeline.Nodes[i].Ref == ref {
-			return &pipeline.Nodes[i]
+func findNode(wf *types.Workflow, ref string) *types.WorkflowNode {
+	for i := range wf.Nodes {
+		if wf.Nodes[i].Ref == ref {
+			return &wf.Nodes[i]
 		}
 	}
 	return nil

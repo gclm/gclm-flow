@@ -2,7 +2,7 @@ name: analyze
 display_name: 代码分析工作流
 description: 用于代码分析、问题诊断、性能评估、安全审计等纯分析任务
 version: "1.0"
-workflow_type: ANALYZE
+workflow_type: analyze
 
 nodes:
   # Phase 1: Discovery - 理解分析目标

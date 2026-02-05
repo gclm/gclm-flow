@@ -1,37 +1,18 @@
 package test
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
-	"github.com/gclm/gclm-flow/gclm-engine/internal/pipeline"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 )
 
-// getConfigPath returns the path to the configs directory
-func getConfigPath(t *testing.T) string {
-	// Get current working directory
-	wd, err := os.Getwd()
-	if err != nil {
-		t.Fatal(err)
-	}
+// TestWorkflowParser 测试流水线解析器
+func TestWorkflowParser(t *testing.T) {
+	parser := workflow.NewParser(getConfigPath(t))
 
-	// If we're in test directory, go up one level
-	if filepath.Base(wd) == "test" {
-		return filepath.Join(filepath.Dir(wd), "configs", "pipelines")
-	}
-
-	// Otherwise assume we're in project root
-	return filepath.Join(wd, "configs", "pipelines")
-}
-
-// TestPipelineParser 测试流水线解析器
-func TestPipelineParser(t *testing.T) {
-	parser := pipeline.NewParser(getConfigPath(t))
-
-	t.Run("LoadCodeSimplePipeline", func(t *testing.T) {
-		p, err := parser.LoadPipeline("code_simple")
+	t.Run("LoadCodeSimpleWorkflow", func(t *testing.T) {
+		p, err := parser.LoadWorkflow("code_simple")
 		if err != nil {
 			t.Fatalf("Failed to load pipeline: %v", err)
 		}
@@ -40,8 +21,8 @@ func TestPipelineParser(t *testing.T) {
 			t.Errorf("Expected name 'code_simple', got '%s'", p.Name)
 		}
 
-		if p.WorkflowType != "CODE_SIMPLE" {
-			t.Errorf("Expected workflow_type 'CODE_SIMPLE', got '%s'", p.WorkflowType)
+		if p.WorkflowType != "fix" {
+			t.Errorf("Expected workflow_type 'fix', got '%s'", p.WorkflowType)
 		}
 
 		if len(p.Nodes) == 0 {
@@ -49,20 +30,20 @@ func TestPipelineParser(t *testing.T) {
 		}
 	})
 
-	t.Run("ValidatePipeline", func(t *testing.T) {
-		p, err := parser.LoadPipeline("code_simple")
+	t.Run("ValidateWorkflow", func(t *testing.T) {
+		p, err := parser.LoadWorkflow("code_simple")
 		if err != nil {
 			t.Fatalf("Failed to load pipeline: %v", err)
 		}
 
 		// Validation should pass
-		if err := parser.ValidatePipeline(p); err != nil {
-			t.Errorf("Pipeline validation failed: %v", err)
+		if err := parser.ValidateWorkflow(p); err != nil {
+			t.Errorf("Workflow validation failed: %v", err)
 		}
 	})
 
 	t.Run("CalculateExecutionOrder", func(t *testing.T) {
-		p, err := parser.LoadPipeline("code_simple")
+		p, err := parser.LoadWorkflow("code_simple")
 		if err != nil {
 			t.Fatalf("Failed to load pipeline: %v", err)
 		}
@@ -92,8 +73,8 @@ func TestPipelineParser(t *testing.T) {
 		}
 	})
 
-	t.Run("LoadAllPipelines", func(t *testing.T) {
-		pipelines, err := parser.LoadAllPipelines()
+	t.Run("LoadAllWorkflows", func(t *testing.T) {
+		pipelines, err := parser.LoadAllWorkflows()
 		if err != nil {
 			t.Fatalf("Failed to load all pipelines: %v", err)
 		}
@@ -107,8 +88,8 @@ func TestPipelineParser(t *testing.T) {
 		}
 	})
 
-	t.Run("ListPipelines", func(t *testing.T) {
-		infos, err := parser.ListPipelines()
+	t.Run("ListWorkflows", func(t *testing.T) {
+		infos, err := parser.ListWorkflows()
 		if err != nil {
 			t.Fatalf("Failed to list pipelines: %v", err)
 		}
@@ -120,33 +101,33 @@ func TestPipelineParser(t *testing.T) {
 		// Check that info contains required fields
 		for _, info := range infos {
 			if info.Name == "" {
-				t.Error("Pipeline name is required")
+				t.Error("Workflow name is required")
 			}
 			if info.DisplayName == "" {
-				t.Error("Pipeline display_name is required")
+				t.Error("Workflow display_name is required")
 			}
 		}
 	})
 
-	t.Run("GetPipelineByWorkflowType", func(t *testing.T) {
-		p, err := parser.GetPipelineByWorkflowType("CODE_SIMPLE")
+	t.Run("GetWorkflowByType", func(t *testing.T) {
+		p, err := parser.GetWorkflowByType("fix")
 		if err != nil {
 			t.Fatalf("Failed to get pipeline by workflow type: %v", err)
 		}
 
-		if p.WorkflowType != "CODE_SIMPLE" {
-			t.Errorf("Expected workflow_type 'CODE_SIMPLE', got '%s'", p.WorkflowType)
+		if p.WorkflowType != "fix" {
+			t.Errorf("Expected workflow_type 'fix', got '%s'", p.WorkflowType)
 		}
 	})
 
 	t.Run("DetectCircularDependencies", func(t *testing.T) {
 		// Create a pipeline with circular dependency
-		p := &types.Pipeline{
+		p := &types.Workflow{
 			Name:         "circular",
-			DisplayName:  "Circular Pipeline",
+			DisplayName:  "Circular Workflow",
 			Version:      "0.1.0",
-			WorkflowType: "CODE_SIMPLE",
-			Nodes: []types.PipelineNode{
+			WorkflowType: "fix",
+			Nodes: []types.WorkflowNode{
 				{
 					Ref:         "a",
 					DisplayName: "Node A",
@@ -177,10 +158,10 @@ func TestPipelineParser(t *testing.T) {
 
 // TestNodeValidation 测试节点验证
 func TestNodeValidation(t *testing.T) {
-	parser := pipeline.NewParser("../../configs/pipelines")
+	parser := workflow.NewParser("../../workflows")
 
 	t.Run("ValidNode", func(t *testing.T) {
-		node := &types.PipelineNode{
+		node := &types.WorkflowNode{
 			Ref:         "test",
 			DisplayName: "Test Node",
 			Agent:       "investigator",
@@ -196,7 +177,7 @@ func TestNodeValidation(t *testing.T) {
 	})
 
 	t.Run("MissingRef", func(t *testing.T) {
-		node := &types.PipelineNode{
+		node := &types.WorkflowNode{
 			DisplayName: "Test Node",
 			Agent:       "investigator",
 			Model:       "haiku",
@@ -211,7 +192,7 @@ func TestNodeValidation(t *testing.T) {
 	})
 
 	t.Run("InvalidTimeout", func(t *testing.T) {
-		node := &types.PipelineNode{
+		node := &types.WorkflowNode{
 			Ref:         "test",
 			DisplayName: "Test Node",
 			Agent:       "investigator",

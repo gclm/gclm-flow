@@ -1,0 +1,89 @@
+# gclm-engine 默认配置文件
+#
+# 用户可以通过在 CLI 同目录创建 gclm_engine_config.yaml 来覆盖此配置
+# CLI 默认位置: ~/.gclm-flow/
+
+version: "1.0"
+
+# ============================================
+# 工作流类型定义
+# ============================================
+# 所有合法的 workflow_type 列表，用于验证工作流 YAML
+# 用户可以在此配置文件中扩展自定义类型
+workflow_types:
+  # 分析类
+  analyze:
+    display_name: "代码分析"
+    description: "代码分析、问题诊断、性能评估、架构分析"
+
+  review:
+    display_name: "代码审查"
+    description: "代码审查、安全审计、质量检查"
+
+  # Git 提交规范类型
+  feat:
+    display_name: "新功能"
+    description: "新功能开发、模块开发、功能实现"
+
+  fix:
+    display_name: "Bug 修复"
+    description: "Bug 修复、错误处理、问题解决"
+
+  docs:
+    display_name: "文档"
+    description: "文档编写、方案设计、需求分析、API 文档"
+
+  refactor:
+    display_name: "重构"
+    description: "代码重构、架构调整、优化改进"
+
+  test:
+    display_name: "测试"
+    description: "测试编写、测试优化、覆盖率提升"
+
+  chore:
+    display_name: "构建/工具"
+    description: "构建配置、工具升级、依赖更新"
+
+  style:
+    display_name: "代码格式"
+    description: "代码格式调整、样式修改（不影响功能）"
+
+  perf:
+    display_name: "性能优化"
+    description: "性能优化、响应时间优化、资源优化"
+
+  ci:
+    display_name: "CI 配置"
+    description: "CI/CD 配置、自动化脚本"
+
+  # 部署类
+  deploy:
+    display_name: "部署"
+    description: "部署配置、发布流程、环境配置"
+
+# ============================================
+# 引擎配置
+# ============================================
+engine:
+  # 数据库路径（相对或绝对路径，相对于 CLI 目录）
+  database_path: "gclm-engine.db"
+
+  # 工作流目录（相对或绝对路径，相对于 CLI 目录）
+  workflows_dir: "workflows"
+
+  # 日志级别: debug, info, warn, error
+  log_level: "info"
+
+# ============================================
+# 执行配置
+# ============================================
+execution:
+  # 默认超时时间（秒）
+  default_timeout: 300
+
+  # 最大重试次数
+  max_retries: 3
+
+  # 并发任务数限制
+  max_concurrent_tasks: 5

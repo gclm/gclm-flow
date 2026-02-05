@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
-	"github.com/gclm/gclm-flow/gclm-engine/internal/pipeline"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 )
 
@@ -14,37 +14,39 @@ import (
 // 职责: 工作流配置和状态管理，不执行 Agent
 type TaskService struct {
 	repo   *db.Repository
-	parser *pipeline.Parser
+	parser *workflow.Parser
 }
 
 // NewTaskService 创建任务服务
-func NewTaskService(repo *db.Repository, parser *pipeline.Parser) *TaskService {
+func NewTaskService(repo *db.Repository, parser *workflow.Parser) *TaskService {
 	return &TaskService{
 		repo:   repo,
 		parser: parser,
 	}
 }
 
-// CreateTask 创建新任务（替代 setup-gclm.sh 的任务创建）
+// CreateTask 创建新任务
+// workflowType: 必需，指定工作流类型（如 "feat", "fix", "docs" 等）
+// prompt: 用户任务描述
 func (s *TaskService) CreateTask(ctx context.Context, prompt string, workflowType string) (*types.Task, error) {
-	// 如果未指定工作流类型，自动检测
+	// workflowType 必需
 	if workflowType == "" {
-		workflowType = s.detectWorkflowType(prompt)
+		return nil, fmt.Errorf("workflowType is required")
 	}
 
-	// 加载流水线配置
-	pipeline, err := s.parser.GetPipelineByWorkflowType(workflowType)
+	// 加载流水线配置（按名称）
+	pipeline, err := s.parser.LoadWorkflow(workflowType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load pipeline: %w", err)
+		return nil, fmt.Errorf("failed to load pipeline '%s': %w", workflowType, err)
 	}
 
 	// 创建任务
 	now := time.Now()
 	task := &types.Task{
 		ID:           generateID("task"),
-		PipelineID:   pipeline.Name,
+		WorkflowID:   pipeline.Name,
 		Prompt:       prompt,
-		WorkflowType: types.WorkflowType(workflowType),
+		WorkflowType: workflowType,
 		Status:       types.TaskStatusCreated,
 		CurrentPhase: 0,
 		TotalPhases:  len(pipeline.Nodes),
@@ -79,7 +81,7 @@ func (s *TaskService) GetExecutionPlan(ctx context.Context, taskID string) (*Exe
 	}
 
 	// 加载流水线
-	pipe, err := s.parser.LoadPipeline(task.PipelineID)
+	pipe, err := s.parser.LoadWorkflow(task.WorkflowID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load pipeline: %w", err)
 	}
@@ -93,7 +95,7 @@ func (s *TaskService) GetExecutionPlan(ctx context.Context, taskID string) (*Exe
 	// 构建执行计划
 	plan := &ExecutionPlan{
 		TaskID:      taskID,
-		PipelineID:  task.PipelineID,
+		WorkflowID:  task.WorkflowID,
 		TotalSteps:  len(phases),
 		WorkflowType: string(task.WorkflowType),
 		Steps:       make([]*ExecutionStep, 0),
@@ -213,7 +215,7 @@ func (s *TaskService) ReportPhaseError(ctx context.Context, taskID, phaseID stri
 	}
 
 	if currentPhase != nil {
-		pipe, _ := s.parser.LoadPipeline(task.PipelineID)
+		pipe, _ := s.parser.LoadWorkflow(task.WorkflowID)
 		node := findNode(pipe, currentPhase.PhaseName)
 
 		if node != nil && node.Required {
@@ -279,12 +281,7 @@ func (s *TaskService) GetTaskStatus(ctx context.Context, taskID string) (*TaskSt
 
 // 内部方法
 
-// detectWorkflowType 检测工作流类型（使用统一分类器）
-func (s *TaskService) detectWorkflowType(prompt string) string {
-	return DetectWorkflowType(prompt)
-}
-
-func (s *TaskService) createPhases(task *types.Task, pipe *types.Pipeline) error {
+func (s *TaskService) createPhases(task *types.Task, pipe *types.Workflow) error {
 	now := time.Now()
 
 	for i, node := range pipe.Nodes {
@@ -311,7 +308,7 @@ func (s *TaskService) createPhases(task *types.Task, pipe *types.Pipeline) error
 
 func (s *TaskService) areDependenciesSatisfied(phase *types.TaskPhase, allPhases []*types.TaskPhase) bool {
 	task, _ := s.repo.GetTask(phase.TaskID)
-	pipe, _ := s.parser.LoadPipeline(task.PipelineID)
+	pipe, _ := s.parser.LoadWorkflow(task.WorkflowID)
 
 	node := findNode(pipe, phase.PhaseName)
 	if node == nil || len(node.DependsOn) == 0 {
@@ -349,7 +346,7 @@ func (s *TaskService) recordEvent(taskID string, eventType types.EventType, data
 
 // 辅助函数
 
-func findNode(pipeline *types.Pipeline, ref string) *types.PipelineNode {
+func findNode(pipeline *types.Workflow, ref string) *types.WorkflowNode {
 	for i := range pipeline.Nodes {
 		if pipeline.Nodes[i].Ref == ref {
 			return &pipeline.Nodes[i]
@@ -365,7 +362,7 @@ func generateID(prefix string) string {
 // ExecutionPlan 执行计划（替代 setup-gclm.sh 的状态文件）
 type ExecutionPlan struct {
 	TaskID       string
-	PipelineID   string
+	WorkflowID   string
 	WorkflowType string
 	TotalSteps   int
 	Steps        []*ExecutionStep

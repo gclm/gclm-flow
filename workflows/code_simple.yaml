@@ -9,7 +9,7 @@ version: "0.1.0-poc"
 author: "gclm-flow"
 
 # 工作流类型标识
-workflow_type: "CODE_SIMPLE"
+workflow_type: fix
 
 # 节点配置
 nodes:

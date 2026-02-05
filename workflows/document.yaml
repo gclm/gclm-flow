@@ -2,7 +2,7 @@ name: document
 display_name: 文档编写工作流
 description: 用于编写技术文档、设计方案、需求分析等文档类任务
 version: "1.0"
-workflow_type: DOCUMENT
+workflow_type: docs
 
 nodes:
   - ref: discovery

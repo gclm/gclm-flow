@@ -3,8 +3,8 @@ package types
 // NodeConfig represents additional configuration for a node
 type NodeConfig map[string]interface{}
 
-// PipelineNode represents a single node in the pipeline
-type PipelineNode struct {
+// WorkflowNode represents a single node in the workflow
+type WorkflowNode struct {
 	Ref          string      `yaml:"ref" json:"ref"`
 	DisplayName  string      `yaml:"display_name" json:"display_name"`
 	Agent        string      `yaml:"agent" json:"agent"`
@@ -16,7 +16,7 @@ type PipelineNode struct {
 	Config       NodeConfig  `yaml:"config,omitempty" json:"config,omitempty"`
 }
 
-// CompletionConfig represents pipeline completion configuration
+// CompletionConfig represents workflow completion configuration
 type CompletionConfig struct {
 	Signal      string `yaml:"signal" json:"signal"`
 	FinalStatus string `yaml:"final_status" json:"final_status"`
@@ -29,22 +29,31 @@ type ErrorHandlingConfig struct {
 	ContinueOnNonRequired bool     `yaml:"continue_on_non_required" json:"continue_on_non_required"`
 }
 
-// Pipeline represents a complete workflow pipeline
-type Pipeline struct {
+// Workflow represents a complete workflow definition
+type Workflow struct {
 	Name          string              `yaml:"name" json:"name"`
 	DisplayName   string              `yaml:"display_name" json:"display_name"`
 	Description   string              `yaml:"description,omitempty" json:"description,omitempty"`
 	Version       string              `yaml:"version" json:"version"`
 	Author        string              `yaml:"author,omitempty" json:"author,omitempty"`
 	WorkflowType  string              `yaml:"workflow_type" json:"workflow_type"`
-	Nodes         []PipelineNode      `yaml:"nodes" json:"nodes"`
+	Nodes         []WorkflowNode      `yaml:"nodes" json:"nodes"`
 	Completion    CompletionConfig     `yaml:"completion,omitempty" json:"completion,omitempty"`
 	ErrorHandling ErrorHandlingConfig `yaml:"error_handling,omitempty" json:"error_handling,omitempty"`
 }
 
 // NodeExecutionOrder represents a node with its execution order
 type NodeExecutionOrder struct {
-	Node     *PipelineNode
+	Node     *WorkflowNode
 	Order    int
 	Parallel int // >0 indicates parallel group number
+}
+
+// WorkflowInfo represents basic workflow information
+type WorkflowInfo struct {
+	Name         string `json:"name"`
+	DisplayName  string `json:"display_name"`
+	Description  string `json:"description"`
+	Version      string `json:"version"`
+	WorkflowType string `json:"workflow_type"`
 }

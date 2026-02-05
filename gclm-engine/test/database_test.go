@@ -75,9 +75,9 @@ func TestTaskCRUD(t *testing.T) {
 	t.Run("CreateTask", func(t *testing.T) {
 		task := &types.Task{
 			ID:           "test-task-1",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Test prompt",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusCreated,
 			CurrentPhase: 0,
 			TotalPhases:  5,
@@ -102,9 +102,9 @@ func TestTaskCRUD(t *testing.T) {
 	t.Run("GetTask", func(t *testing.T) {
 		task := &types.Task{
 			ID:           "test-task-2",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Get test",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusCreated,
 			CurrentPhase: 0,
 			TotalPhases:  5,
@@ -127,9 +127,9 @@ func TestTaskCRUD(t *testing.T) {
 		for i := 0; i < 3; i++ {
 			task := &types.Task{
 				ID:           "test-list-" + string(rune('a'+i)),
-				PipelineID:   "code_simple",
+				WorkflowID:   "code_simple",
 				Prompt:       "List test",
-				WorkflowType: types.WorkflowTypeCodeSimple,
+				WorkflowType: "CODE_SIMPLE",
 				Status:       types.TaskStatusCreated,
 				CurrentPhase: 0,
 				TotalPhases:  5,
@@ -150,9 +150,9 @@ func TestTaskCRUD(t *testing.T) {
 	t.Run("UpdateTaskStatus", func(t *testing.T) {
 		task := &types.Task{
 			ID:           "test-status-1",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Status test",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusCreated,
 			CurrentPhase: 0,
 			TotalPhases:  5,
@@ -174,9 +174,9 @@ func TestTaskCRUD(t *testing.T) {
 	t.Run("CompleteTask", func(t *testing.T) {
 		task := &types.Task{
 			ID:           "test-complete-1",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Complete test",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusRunning,
 			CurrentPhase: 5,
 			TotalPhases:  5,
@@ -211,9 +211,9 @@ func TestTaskPhases(t *testing.T) {
 		// Create a task first
 		task := &types.Task{
 			ID:           "test-phase-task-1",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Phase test",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusCreated,
 			CurrentPhase: 0,
 			TotalPhases:  1,
@@ -256,9 +256,9 @@ func TestTaskPhases(t *testing.T) {
 		// Create task and phase
 		task := &types.Task{
 			ID:           "test-phase-task-2",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Phase status test",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusCreated,
 			CurrentPhase: 0,
 			TotalPhases:  1,
@@ -294,9 +294,9 @@ func TestTaskPhases(t *testing.T) {
 		// Create task and phase
 		task := &types.Task{
 			ID:           "test-phase-task-3",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Phase output test",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusCreated,
 			CurrentPhase: 0,
 			TotalPhases:  1,
@@ -342,9 +342,9 @@ func TestEvents(t *testing.T) {
 		now := time.Now()
 		task := &types.Task{
 			ID:           "test-event-task-1",
-			PipelineID:   "code_simple",
+			WorkflowID:   "code_simple",
 			Prompt:       "Event test",
-			WorkflowType: types.WorkflowTypeCodeSimple,
+			WorkflowType: "CODE_SIMPLE",
 			Status:       types.TaskStatusCreated,
 			CurrentPhase: 0,
 			TotalPhases:  1,
@@ -399,9 +399,9 @@ func TestPersistence(t *testing.T) {
 	// Create a task
 	task := &types.Task{
 		ID:           "test-persist-1",
-		PipelineID:   "code_simple",
+		WorkflowID:   "code_simple",
 		Prompt:       "Persistence test",
-		WorkflowType: types.WorkflowTypeCodeSimple,
+		WorkflowType: "CODE_SIMPLE",
 		Status:       types.TaskStatusCreated,
 		CurrentPhase: 0,
 		TotalPhases:  1,

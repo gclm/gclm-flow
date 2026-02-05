@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
-	"github.com/gclm/gclm-flow/gclm-engine/internal/pipeline"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/service"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 )
@@ -17,19 +17,19 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := pipeline.NewParser(getConfigPath(t))
+		parser := workflow.NewParser(getConfigPath(t))
 		taskService := service.NewTaskService(repo, parser)
 
 		ctx := context.Background()
 
-		// 测试自动检测工作流类型
-		task, err := taskService.CreateTask(ctx, "修复这个bug", "")
+		// 测试创建任务（指定工作流类型）
+		task, err := taskService.CreateTask(ctx, "修复这个bug", "code_simple")
 		if err != nil {
 			t.Fatalf("Failed to create task: %v", err)
 		}
 
-		if task.WorkflowType != types.WorkflowTypeCodeSimple {
-			t.Errorf("Expected workflow type CODE_SIMPLE, got %s", task.WorkflowType)
+		if task.WorkflowType != "fix" {
+			t.Errorf("Expected workflow type fix, got %s", task.WorkflowType)
 		}
 
 		// 验证阶段已创建
@@ -48,13 +48,13 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := pipeline.NewParser(getConfigPath(t))
+		parser := workflow.NewParser(getConfigPath(t))
 		taskService := service.NewTaskService(repo, parser)
 
 		ctx := context.Background()
 
 		// 创建任务
-		task, err := taskService.CreateTask(ctx, "编写技术文档", "")
+		task, err := taskService.CreateTask(ctx, "编写技术文档", "document")
 		if err != nil {
 			t.Fatalf("Failed to create task: %v", err)
 		}
@@ -65,8 +65,8 @@ func TestTaskService(t *testing.T) {
 			t.Fatalf("Failed to get execution plan: %v", err)
 		}
 
-		if plan.WorkflowType != "DOCUMENT" {
-			t.Errorf("Expected workflow type DOCUMENT, got %s", plan.WorkflowType)
+		if plan.WorkflowType != "docs" {
+			t.Errorf("Expected workflow type docs, got %s", plan.WorkflowType)
 		}
 
 		if len(plan.Steps) == 0 {
@@ -88,13 +88,13 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := pipeline.NewParser(getConfigPath(t))
+		parser := workflow.NewParser(getConfigPath(t))
 		taskService := service.NewTaskService(repo, parser)
 
 		ctx := context.Background()
 
 		// 创建任务
-		task, _ := taskService.CreateTask(ctx, "开发新功能", "")
+		task, _ := taskService.CreateTask(ctx, "开发新功能", "code_complex")
 
 		// 获取当前阶段
 		phase, err := taskService.GetCurrentPhase(ctx, task.ID)
@@ -112,13 +112,13 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := pipeline.NewParser(getConfigPath(t))
+		parser := workflow.NewParser(getConfigPath(t))
 		taskService := service.NewTaskService(repo, parser)
 
 		ctx := context.Background()
 
 		// 创建任务
-		task, _ := taskService.CreateTask(ctx, "简单修复", "")
+		task, _ := taskService.CreateTask(ctx, "简单修复", "code_simple")
 		phase, _ := taskService.GetCurrentPhase(ctx, task.ID)
 
 		// 报告输出
@@ -144,13 +144,13 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := pipeline.NewParser(getConfigPath(t))
+		parser := workflow.NewParser(getConfigPath(t))
 		taskService := service.NewTaskService(repo, parser)
 
 		ctx := context.Background()
 
 		// 创建任务
-		task, err := taskService.CreateTask(ctx, "测试任务", "")
+		task, err := taskService.CreateTask(ctx, "测试任务", "code_simple")
 		if err != nil {
 			t.Fatalf("Failed to create task: %v", err)
 		}
@@ -189,13 +189,13 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := pipeline.NewParser(getConfigPath(t))
+		parser := workflow.NewParser(getConfigPath(t))
 		taskService := service.NewTaskService(repo, parser)
 
 		ctx := context.Background()
 
 		// 创建任务
-		task, _ := taskService.CreateTask(ctx, "状态查询测试", "")
+		task, _ := taskService.CreateTask(ctx, "状态查询测试", "code_simple")
 
 		// 获取任务状态
 		status, err := taskService.GetTaskStatus(ctx, task.ID)
@@ -221,13 +221,13 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := pipeline.NewParser(getConfigPath(t))
+		parser := workflow.NewParser(getConfigPath(t))
 		taskService := service.NewTaskService(repo, parser)
 
 		ctx := context.Background()
 
 		// 创建任务
-		task, _ := taskService.CreateTask(ctx, "暂停测试", "")
+		task, _ := taskService.CreateTask(ctx, "暂停测试", "code_simple")
 
 		// 暂停任务
 		err := taskService.PauseTask(ctx, task.ID)
@@ -270,7 +270,7 @@ func TestWorkflowTypeDetection(t *testing.T) {
 	defer cleanup()
 
 	repo := db.NewRepository(database)
-	parser := pipeline.NewParser(getConfigPath(t))
+	parser := workflow.NewParser(getConfigPath(t))
 	taskService := service.NewTaskService(repo, parser)
 
 	ctx := context.Background()
@@ -278,19 +278,20 @@ func TestWorkflowTypeDetection(t *testing.T) {
 	tests := []struct {
 		name            string
 		prompt          string
-		expectedWorkflow types.WorkflowType
+		workflowName    string
+		expectedWorkflow string
 	}{
-		{"文档编写", "编写API文档", types.WorkflowTypeDocument},
-		{"方案设计", "设计技术方案", types.WorkflowTypeDocument},
-		{"Bug修复", "修复登录bug", types.WorkflowTypeCodeSimple},
-		{"小修改", "fix error in auth", types.WorkflowTypeCodeSimple},
-		{"新功能", "开发用户管理模块", types.WorkflowTypeCodeComplex},
-		{"重构", "重构数据库层", types.WorkflowTypeCodeComplex},
+		{"文档编写", "编写API文档", "document", "docs"},
+		{"方案设计", "设计技术方案", "document", "docs"},
+		{"Bug修复", "修复登录bug", "code_simple", "fix"},
+		{"小修改", "fix error in auth", "code_simple", "fix"},
+		{"新功能", "开发用户管理模块", "code_complex", "feat"},
+		{"重构", "重构数据库层", "code_complex", "feat"},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			task, err := taskService.CreateTask(ctx, tt.prompt, "")
+			task, err := taskService.CreateTask(ctx, tt.prompt, tt.workflowName)
 			if err != nil {
 				t.Fatalf("Failed to create task: %v", err)
 			}

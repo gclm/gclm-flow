@@ -2,18 +2,15 @@ package db
 
 import (
 	"database/sql"
-	"embed"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
+	"github.com/pressly/goose/v3"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-//go:embed schema.sql
-var schemaFS embed.FS
 
 // Database represents the SQLite database connection
 type Database struct {
@@ -72,16 +69,30 @@ func New(cfg *Config) (*Database, error) {
 	return database, nil
 }
 
-// init initializes the database schema
+// init initializes the database schema using goose migrations
 func (d *Database) init() error {
-	schema, err := schemaFS.ReadFile("schema.sql")
-	if err != nil {
-		return fmt.Errorf("failed to read schema: %w", err)
+	// Configure goose
+	if err := goose.SetDialect("sqlite3"); err != nil {
+		return fmt.Errorf("failed to set goose dialect: %w", err)
 	}
 
-	_, err = d.conn.Exec(string(schema))
-	if err != nil {
-		return fmt.Errorf("failed to execute schema: %w", err)
+	// Determine migrations directory
+	// For development: use ./migrations relative to working directory
+	// For production: use ./migrations relative to executable
+	migrationsDir := "migrations"
+
+	// Check if migrations directory exists in working directory
+	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
+		// Try relative to executable
+		execDir, err := os.Executable()
+		if err == nil {
+			migrationsDir = filepath.Join(filepath.Dir(execDir), "migrations")
+		}
+	}
+
+	// Run migrations
+	if err := goose.Up(d.conn, migrationsDir); err != nil {
+		return fmt.Errorf("failed to run migrations: %w", err)
 	}
 
 	return nil
@@ -124,14 +135,14 @@ func NewRepository(db *Database) *Repository {
 func (r *Repository) CreateTask(task *types.Task) error {
 	query := `
 		INSERT INTO tasks (
-			id, pipeline_id, prompt, workflow_type, status,
+			id, workflow_id, prompt, workflow_type, status,
 			current_phase, total_phases, created_at, updated_at
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err := r.db.conn.Exec(query,
 		task.ID,
-		task.PipelineID,
+		task.WorkflowID,
 		task.Prompt,
 		task.WorkflowType,
 		task.Status,
@@ -147,7 +158,7 @@ func (r *Repository) CreateTask(task *types.Task) error {
 // GetTask retrieves a task by ID
 func (r *Repository) GetTask(id string) (*types.Task, error) {
 	query := `
-		SELECT id, pipeline_id, prompt, workflow_type, status,
+		SELECT id, workflow_id, prompt, workflow_type, status,
 		       current_phase, total_phases, result, error_message,
 		       created_at, started_at, completed_at, updated_at
 		FROM tasks WHERE id = ?
@@ -158,7 +169,7 @@ func (r *Repository) GetTask(id string) (*types.Task, error) {
 
 	err := r.db.conn.QueryRow(query, id).Scan(
 		&task.ID,
-		&task.PipelineID,
+		&task.WorkflowID,
 		&task.Prompt,
 		&task.WorkflowType,
 		&task.Status,
@@ -207,7 +218,7 @@ func (r *Repository) GetTask(id string) (*types.Task, error) {
 // ListTasks retrieves all tasks with optional filtering
 func (r *Repository) ListTasks(status *types.TaskStatus, limit int) ([]*types.Task, error) {
 	query := `
-		SELECT id, pipeline_id, prompt, workflow_type, status,
+		SELECT id, workflow_id, prompt, workflow_type, status,
 		       current_phase, total_phases, result, error_message,
 		       created_at, started_at, completed_at, updated_at
 		FROM tasks
@@ -239,7 +250,7 @@ func (r *Repository) ListTasks(status *types.TaskStatus, limit int) ([]*types.Ta
 
 		err := rows.Scan(
 			&task.ID,
-			&task.PipelineID,
+			&task.WorkflowID,
 			&task.Prompt,
 			&task.WorkflowType,
 			&task.Status,

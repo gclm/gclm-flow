@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/gclm/gclm-flow/gclm-engine/internal/config"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 	"gopkg.in/yaml.v3"
 )
@@ -61,8 +62,8 @@ func (r *WorkflowRepository) InitializeBuiltinWorkflows(workflowsDir string) err
 		}
 
 		// Parse YAML to get workflow metadata
-		var pipeline types.Pipeline
-		if err := yaml.Unmarshal(yamlData, &pipeline); err != nil {
+		var wf types.Workflow
+		if err := yaml.Unmarshal(yamlData, &wf); err != nil {
 			return fmt.Errorf("failed to parse workflow YAML %s: %w", yamlPath, err)
 		}
 
@@ -84,17 +85,27 @@ func (r *WorkflowRepository) InitializeBuiltinWorkflows(workflowsDir string) err
 			continue
 		}
 
-		// Get workflow_type from pipeline or use workflowName as default
-		workflowType := pipeline.WorkflowType
+		// Get workflow_type from workflow (required)
+		workflowType := wf.WorkflowType
 		if workflowType == "" {
-			workflowType = workflowName
+			return fmt.Errorf("workflow %s: workflow_type is required", workflowName)
+		}
+
+		// Validate workflow_type against config
+		cfg, err := config.Load()
+		if err != nil {
+			return fmt.Errorf("failed to load config: %w", err)
+		}
+
+		if err := cfg.ValidateWorkflowType(workflowType); err != nil {
+			return fmt.Errorf("workflow %s: %w", workflowName, err)
 		}
 
 		// Insert into database
 		_, err = r.db.conn.Exec(`
 			INSERT INTO workflows (name, display_name, description, workflow_type, version, is_builtin, config_yaml)
 			VALUES (?, ?, ?, ?, ?, 1, ?)
-		`, workflowName, pipeline.DisplayName, pipeline.Description, workflowType, pipeline.Version, string(yamlData))
+		`, workflowName, wf.DisplayName, wf.Description, workflowType, wf.Version, string(yamlData))
 
 		if err != nil {
 			return fmt.Errorf("failed to insert workflow %s: %w", workflowName, err)
@@ -171,8 +182,8 @@ func (r *WorkflowRepository) GetWorkflowByType(workflowType string) (*WorkflowRe
 // InstallWorkflow installs a new workflow from YAML content
 func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error {
 	// Parse YAML to get metadata
-	var pipeline types.Pipeline
-	if err := yaml.Unmarshal(yamlData, &pipeline); err != nil {
+	var wf types.Workflow
+	if err := yaml.Unmarshal(yamlData, &wf); err != nil {
 		return fmt.Errorf("failed to parse workflow YAML: %w", err)
 	}
 
@@ -187,8 +198,8 @@ func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error
 		return fmt.Errorf("workflow '%s' already exists", name)
 	}
 
-	// Determine workflow type from pipeline
-	workflowType := pipeline.WorkflowType
+	// Determine workflow type from workflow
+	workflowType := wf.WorkflowType
 	if workflowType == "" {
 		// Fallback: infer from name
 		switch name {
@@ -205,7 +216,7 @@ func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error
 	_, err = r.db.conn.Exec(`
 		INSERT INTO workflows (name, display_name, description, workflow_type, version, is_builtin, config_yaml)
 		VALUES (?, ?, ?, ?, ?, 0, ?)
-	`, name, pipeline.DisplayName, pipeline.Description, workflowType, pipeline.Version, string(yamlData))
+	`, name, wf.DisplayName, wf.Description, workflowType, wf.Version, string(yamlData))
 
 	if err != nil {
 		return fmt.Errorf("failed to install workflow: %w", err)

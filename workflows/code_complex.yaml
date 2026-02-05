@@ -2,7 +2,7 @@ name: code_complex
 display_name: 复杂功能开发工作流
 description: 用于新功能开发、模块开发、跨文件重构等复杂任务
 version: "1.0"
-workflow_type: CODE_COMPLEX
+workflow_type: feat
 
 nodes:
   - ref: discovery
