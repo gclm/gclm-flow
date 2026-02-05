@@ -35,10 +35,15 @@ type WorkflowRecord struct {
 
 // InitializeBuiltinWorkflows loads builtin workflows from YAML files into the database
 // Scans the workflows directory for all .yaml files (excluding examples/)
+// Note: Directory should already exist (created by autoInitialize or `init` command)
 func (r *WorkflowRepository) InitializeBuiltinWorkflows(workflowsDir string) error {
-	// Read all YAML files from workflows directory
+	// Check if directory exists
 	entries, err := os.ReadDir(workflowsDir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			// Directory doesn't exist - this is an error since autoInitialize should have created it
+			return fmt.Errorf("workflows directory not found: %s (run 'gclm-engine workflow init' to setup)", workflowsDir)
+		}
 		return fmt.Errorf("failed to read workflows directory: %w", err)
 	}
 

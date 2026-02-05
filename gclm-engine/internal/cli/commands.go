@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/gclm/gclm-flow/gclm-engine/internal/assets"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/config"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/errors"
@@ -33,6 +34,15 @@ type CLI struct {
 
 // New creates a new CLI instance
 func New(configDir string) (*CLI, error) {
+	// Check if initialization is needed
+	needsInit := checkNeedsInit(configDir)
+	if needsInit {
+		// Silent auto-init for first-time setup
+		if err := autoInitialize(configDir); err != nil {
+			return nil, fmt.Errorf("auto-initialization failed: %w", err)
+		}
+	}
+
 	// Initialize database
 	database, err := db.New(db.DefaultConfig())
 	if err != nil {
@@ -40,7 +50,8 @@ func New(configDir string) (*CLI, error) {
 	}
 
 	// Initialize builtin workflows from YAML files
-	if err := database.InitWorkflows(configDir); err != nil {
+	workflowsDir := filepath.Join(configDir, "workflows")
+	if err := database.InitWorkflows(workflowsDir); err != nil {
 		return nil, fmt.Errorf("failed to initialize workflows: %w", err)
 	}
 
@@ -66,6 +77,43 @@ func New(configDir string) (*CLI, error) {
 	return cli, nil
 }
 
+// checkNeedsInit 检查是否需要初始化
+func checkNeedsInit(configDir string) bool {
+	configFile := filepath.Join(configDir, "gclm_engine_config.yaml")
+	workflowsDir := filepath.Join(configDir, "workflows")
+
+	// Check if config file exists
+	if _, err := os.Stat(configFile); os.IsNotExist(err) {
+		return true
+	}
+
+	// Check if workflows directory exists and has files
+	entries, err := os.ReadDir(workflowsDir)
+	if err != nil || len(entries) == 0 {
+		return true
+	}
+
+	return false
+}
+
+// autoInitialize 静默自动初始化
+func autoInitialize(configDir string) error {
+	// Export default config
+	if _, err := assets.ExportDefaultConfig(configDir, false); err != nil {
+		return err
+	}
+
+	// Export builtin workflows
+	workflowsDir := filepath.Join(configDir, "workflows")
+	if _, err := assets.ExportBuiltinWorkflows(workflowsDir, false); err != nil {
+		return err
+	}
+
+	// Note: Database initialization happens in db.New() via migrations
+
+	return nil
+}
+
 // createRootCommand creates the root command
 func (c *CLI) createRootCommand() *cobra.Command {
 	root := &cobra.Command{
@@ -79,12 +127,28 @@ func (c *CLI) createRootCommand() *cobra.Command {
 	root.PersistentFlags().Bool("pretty", true, "Pretty print JSON output")
 
 	// Add subcommands
+	root.AddCommand(c.createInitCommand())
 	root.AddCommand(c.createTaskCommand())
 	root.AddCommand(c.createPipelineCommand())
 	root.AddCommand(c.createWorkflowCommand())
 	root.AddCommand(c.createVersionCommand())
 
 	return root
+}
+
+// createInitCommand creates the init command (top-level)
+func (c *CLI) createInitCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "init",
+		Short: "Initialize gclm-engine configuration",
+		Long:  "Create default configuration and workflow files in ~/.gclm-flow/\n\n" +
+			"If --force is specified, existing files will be overwritten.\n" +
+			"If --silent is specified, no output will be printed (useful for automatic init).",
+		RunE: c.runWorkflowInit,
+	}
+	cmd.Flags().Bool("force", false, "Overwrite existing files")
+	cmd.Flags().Bool("silent", false, "Suppress output (for automatic init)")
+	return cmd
 }
 
 // createTaskCommand creates task management commands
@@ -340,14 +404,6 @@ func (c *CLI) createWorkflowCommand() *cobra.Command {
 		RunE:  c.runWorkflowInfo,
 	}
 
-	// workflow init - 初始化引擎配置
-	initCmd := &cobra.Command{
-		Use:   "init",
-		Short: "Initialize gclm-engine configuration",
-		Long:  "Create default configuration and workflow files in ~/.gclm-flow/",
-		RunE:  c.runWorkflowInit,
-	}
-
 	// workflow sync - 同步工作流到数据库
 	syncCmd := &cobra.Command{
 		Use:   "sync [yaml-file]",
@@ -366,7 +422,7 @@ func (c *CLI) createWorkflowCommand() *cobra.Command {
 	}
 	syncCmd.Flags().Bool("force", false, "Force sync even if validation fails")
 
-	cmd.AddCommand(startCmd, nextCmd, validateCmd, installCmd, uninstallCmd, listCmd, exportCmd, infoCmd, initCmd, syncCmd)
+	cmd.AddCommand(startCmd, nextCmd, validateCmd, installCmd, uninstallCmd, listCmd, exportCmd, infoCmd, syncCmd)
 
 	return cmd
 }
@@ -1272,101 +1328,70 @@ func (c *CLI) runWorkflowInfo(cmd *cobra.Command, args []string) error {
 
 // runWorkflowInit 初始化 gclm-engine 配置
 func (c *CLI) runWorkflowInit(cmd *cobra.Command, args []string) error {
-	fmt.Println("Initializing gclm-engine...")
+	force, _ := cmd.Flags().GetBool("force")
+	silent, _ := cmd.Flags().GetBool("silent")
 
-	// Create workflows directory
+	if !silent {
+		fmt.Println("Initializing gclm-engine...")
+	}
+
+	// 1. Export default config
+	if !silent {
+		fmt.Println("\n[1/3] Setting up configuration...")
+	}
+
+	created, err := assets.ExportDefaultConfig(c.configDir, force)
+	if err != nil {
+		return fmt.Errorf("failed to export default config: %w", err)
+	}
+	if created && !silent {
+		fmt.Printf("  ✓ Created: %s\n", filepath.Join(c.configDir, "gclm_engine_config.yaml"))
+	} else if !silent {
+		fmt.Printf("  − Config exists (use --force to overwrite)\n")
+	}
+
+	// 2. Export builtin workflows
+	if !silent {
+		fmt.Println("\n[2/3] Setting up workflow definitions...")
+	}
+
 	workflowsDir := filepath.Join(c.configDir, "workflows")
-	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
-		return fmt.Errorf("failed to create workflows directory: %w", err)
+	exported, err := assets.ExportBuiltinWorkflows(workflowsDir, force)
+	if err != nil {
+		return fmt.Errorf("failed to export builtin workflows: %w", err)
+	}
+	if len(exported) > 0 && !silent {
+		for _, name := range exported {
+			fmt.Printf("  ✓ Created: %s\n", filepath.Join(workflowsDir, name))
+		}
+	} else if !silent {
+		fmt.Printf("  − Workflows exist (use --force to overwrite)\n")
 	}
 
-	// Copy default config if it doesn't exist
-	configPath := filepath.Join(c.configDir, "gclm_engine_config.yaml")
-	if _, err := os.Stat(configPath); os.IsNotExist(err) {
-		// Read default config from binary location
-		defaultConfigPath := filepath.Join(filepath.Dir(c.configDir), "workflow_config_default.yaml")
-		defaultConfig, err := os.ReadFile(defaultConfigPath)
-		if err != nil {
-			// Fallback: create minimal config
-			defaultConfig = []byte(`version: "1.0"
-
-workflow_types:
-  analyze:
-    display_name: "代码分析"
-    description: "代码分析、问题诊断、性能评估、架构分析"
-  feat:
-    display_name: "新功能"
-    description: "新功能开发、模块开发、功能实现"
-  fix:
-    display_name: "Bug 修复"
-    description: "Bug 修复、错误处理、问题解决"
-  docs:
-    display_name: "文档"
-    description: "文档编写、方案设计、需求分析、API 文档"
-
-engine:
-  database_path: "gclm-engine.db"
-  workflows_dir: "workflows"
-  log_level: "info"
-`)
-		}
-
-		if err := os.WriteFile(configPath, defaultConfig, 0644); err != nil {
-			return fmt.Errorf("failed to write config: %w", err)
-		}
-		fmt.Printf("  Created: %s\n", configPath)
-	} else {
-		fmt.Printf("  Exists: %s\n", configPath)
+	// 3. Initialize database and load workflows
+	if !silent {
+		fmt.Println("\n[3/3] Initializing database...")
 	}
 
-	// Check for builtin workflow files
-	builtinDir := filepath.Join(filepath.Dir(c.configDir), "workflows")
-	builtinFiles, _ := os.ReadDir(builtinDir)
-
-	syncCount := 0
-	for _, f := range builtinFiles {
-		if strings.HasSuffix(f.Name(), ".yaml") {
-			srcPath := filepath.Join(builtinDir, f.Name())
-			dstPath := filepath.Join(workflowsDir, f.Name())
-
-			// Copy if not exists
-			if _, err := os.Stat(dstPath); os.IsNotExist(err) {
-				input, _ := os.ReadFile(srcPath)
-				os.WriteFile(dstPath, input, 0644)
-				fmt.Printf("  Created: %s\n", dstPath)
-				syncCount++
-			}
-		}
+	// Initialize builtin workflows from the exported YAML files
+	wfRepo := db.NewWorkflowRepository(c.db)
+	if err := wfRepo.InitializeBuiltinWorkflows(workflowsDir); err != nil {
+		return fmt.Errorf("failed to initialize workflows: %w", err)
+	}
+	if !silent {
+		fmt.Printf("  ✓ Database initialized\n")
 	}
 
-	// Initial sync
-	if syncCount > 0 {
-		fmt.Println("\nSyncing workflows to database...")
-		wfRepo := db.NewWorkflowRepository(c.db)
-
-		// Sync each created workflow
-		for _, f := range builtinFiles {
-			if strings.HasSuffix(f.Name(), ".yaml") {
-				workflowName := strings.TrimSuffix(f.Name(), ".yaml")
-				yamlPath := filepath.Join(workflowsDir, f.Name())
-
-				_, err := c.syncOneWorkflow(wfRepo, workflowName, yamlPath, false)
-				if err != nil {
-					fmt.Fprintf(os.Stderr, "  Warning: failed to sync %s: %v\n", workflowName, err)
-				} else {
-					fmt.Printf("  ✓ %s\n", workflowName)
-				}
-			}
-		}
+	if !silent {
+		fmt.Println("\n✓ Initialization complete!")
+		fmt.Printf("  Config: %s\n", filepath.Join(c.configDir, "gclm_engine_config.yaml"))
+		fmt.Printf("  Workflows: %s\n", workflowsDir)
+		fmt.Printf("  Database: %s\n", filepath.Join(c.configDir, "gclm-engine.db"))
+		fmt.Println("\nNext steps:")
+		fmt.Println("  1. Edit workflow YAML files in the workflows directory (optional)")
+		fmt.Println("  2. Run 'gclm-engine workflow sync' to publish changes to database")
+		fmt.Println("  3. Run 'gclm-engine workflow list' to see available workflows")
 	}
-
-	fmt.Println("\n✓ Initialization complete!")
-	fmt.Printf("  Config: %s\n", configPath)
-	fmt.Printf("  Workflows: %s\n", workflowsDir)
-	fmt.Println("\nNext steps:")
-	fmt.Println("  1. Edit workflow YAML files in the workflows directory")
-	fmt.Println("  2. Run 'gclm-engine workflow sync' to publish changes")
-	fmt.Println("  3. Run 'gclm-engine workflow list' to see available workflows")
 
 	return nil
 }

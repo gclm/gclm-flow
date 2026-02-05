@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -11,6 +12,16 @@ import (
 	"github.com/pressly/goose/v3"
 	_ "github.com/mattn/go-sqlite3"
 )
+
+// migrationsFS holds the embedded migrations filesystem
+// Set by SetMigrationsFS before calling New()
+var migrationsFS fs.FS
+
+// SetMigrationsFS sets the embedded migrations filesystem
+// Pass the result of MigrationsFS() from main package
+func SetMigrationsFS(fsys fs.FS) {
+	migrationsFS = fsys
+}
 
 // Database represents the SQLite database connection
 type Database struct {
@@ -76,26 +87,47 @@ func (d *Database) init() error {
 		return fmt.Errorf("failed to set goose dialect: %w", err)
 	}
 
-	// Determine migrations directory
-	// For development: use ./migrations relative to working directory
-	// For production: use ./migrations relative to executable
-	migrationsDir := "migrations"
-
-	// Check if migrations directory exists in working directory
-	if _, err := os.Stat(migrationsDir); os.IsNotExist(err) {
-		// Try relative to executable
-		execDir, err := os.Executable()
-		if err == nil {
-			migrationsDir = filepath.Join(filepath.Dir(execDir), "migrations")
+	// If embedded migrations are available, use them
+	if migrationsFS != nil {
+		goose.SetBaseFS(migrationsFS)
+		if err := goose.Up(d.conn, "migrations"); err != nil {
+			return fmt.Errorf("failed to run embedded migrations: %w", err)
 		}
+		return nil
 	}
 
-	// Run migrations
-	if err := goose.Up(d.conn, migrationsDir); err != nil {
-		return fmt.Errorf("failed to run migrations: %w", err)
+	// Fallback: try filesystem locations (for development/testing)
+	migrationsDirs := []string{
+		// 1. Development: ./migrations relative to working directory
+		"migrations",
+		// 2. Production: ~/.gclm-flow/migrations
+		filepath.Join(os.Getenv("HOME"), ".gclm-flow", "migrations"),
 	}
 
-	return nil
+	var lastErr error
+	for _, migrationsDir := range migrationsDirs {
+		// Check if directory exists and has SQL files
+		stat, err := os.Stat(migrationsDir)
+		if err != nil || !stat.IsDir() {
+			continue
+		}
+
+		// Try to run migrations
+		if err := goose.Up(d.conn, migrationsDir); err != nil {
+			lastErr = fmt.Errorf("failed to run migrations from %s: %w", migrationsDir, err)
+			continue
+		}
+
+		// Success
+		return nil
+	}
+
+	// If we tried all locations and failed, return the last error
+	if lastErr != nil {
+		return fmt.Errorf("failed to run migrations: %w", lastErr)
+	}
+
+	return fmt.Errorf("no migrations found")
 }
 
 // Close closes the database connection

@@ -142,117 +142,16 @@ install_gclm_engine() {
         print_color "$GREEN" "✓ 二进制已下载并安装"
     fi
 
-    # 同步工作流文件
-    sync_engine_workflows
-
-    # 创建示例工作流
-    create_example_workflow
-
-    # 初始化数据库
-    init_engine_database
+    print_color "$BLUE" "初始化配置和工作流..."
+    # 运行 init 命令来触发完整初始化
+    if "$ENGINE_INSTALL_DIR/$ENGINE_BINARY_NAME" init 2>&1 | grep -q "complete"; then
+        print_color "$GREEN" "✓ 初始化成功"
+    else
+        print_color "$YELLOW" "⚠ 首次运行时将自动初始化"
+    fi
 
     print_color "$GREEN" "✓ gclm-engine 安装完成"
-}
-
-# 同步工作流文件
-sync_engine_workflows() {
-    print_color "$BLUE" "同步工作流文件..."
-
-    local source_dir=""
-
-    # 检测工作流目录位置
-    if [ -d "$PROJECT_DIR/gclm-engine/workflows" ]; then
-        source_dir="$PROJECT_DIR/gclm-engine/workflows"
-    elif [ -d "$PROJECT_DIR/workflows" ]; then
-        source_dir="$PROJECT_DIR/workflows"
-    else
-        print_color "$YELLOW" "⚠ 未找到工作流目录"
-        return
-    fi
-
-    # 创建目标目录
-    mkdir -p "$ENGINE_INSTALL_DIR/workflows"
-
-    # 复制工作流文件
-    local count=0
-    for yaml in "$source_dir"/*.yaml; do
-        if [ -f "$yaml" ]; then
-            cp "$yaml" "$ENGINE_INSTALL_DIR/workflows/"
-            count=$((count + 1))
-        fi
-    done
-
-    if [ $count -gt 0 ]; then
-        print_color "$GREEN" "✓ 已同步 $count 个工作流文件"
-    fi
-}
-
-# 创建示例工作流
-create_example_workflow() {
-    print_color "$BLUE" "创建示例工作流..."
-
-    local example_dir="$ENGINE_INSTALL_DIR/workflows/examples"
-    mkdir -p "$example_dir"
-
-    # 创建简单自定义工作流示例
-    if [ ! -f "$example_dir/custom_simple.yaml" ]; then
-        cat > "$example_dir/custom_simple.yaml" << 'EOF'
-# 自定义简单工作流示例
-name: custom_simple
-display_name: "自定义简单工作流"
-description: "一个最小化的自定义工作流示例"
-version: "1.0"
-workflow_type: CODE_SIMPLE
-
-nodes:
-  - ref: discovery
-    display_name: 需求发现
-    agent: investigator
-    model: haiku
-    required: true
-    timeout: 60
-
-  - ref: clarification
-    display_name: 澄清确认
-    agent: investigator
-    model: haiku
-    required: true
-    timeout: 60
-    depends_on:
-      - discovery
-
-  - ref: implementation
-    display_name: 实现
-    agent: worker
-    model: sonnet
-    required: true
-    timeout: 300
-    depends_on:
-      - clarification
-
-  - ref: summary
-    display_name: 总结
-    agent: investigator
-    model: haiku
-    required: true
-    timeout: 60
-    depends_on:
-      - implementation
-EOF
-        print_color "$GREEN" "✓ 已创建示例工作流: custom_simple.yaml"
-    fi
-}
-
-# 初始化 gclm-engine 数据库
-init_engine_database() {
-    print_color "$BLUE" "初始化数据库..."
-
-    # 运行一次命令来触发数据库初始化
-    if "$ENGINE_INSTALL_DIR/$ENGINE_BINARY_NAME" workflow list &>/dev/null; then
-        print_color "$GREEN" "✓ 数据库初始化成功"
-    else
-        print_color "$YELLOW" "⚠ 数据库将在首次运行时自动初始化"
-    fi
+    print_color "$BLUE" "Note: 配置文件和工作流会在首次运行时自动从二进制中导出"
 }
 
 # 更新 PATH 配置
@@ -270,18 +169,36 @@ update_engine_path() {
             ;;
     esac
 
+    # 检查配置文件是否已存在 gclm-engine PATH 配置
+    if [ -f "$shell_config" ] && grep -q "# gclm-engine" "$shell_config" 2>/dev/null; then
+        print_color "$BLUE" "✓ PATH 配置已存在，跳过"
+        return
+    fi
+
     # 检查是否已在 PATH 中
     if echo ":$PATH:" | grep -q ":${ENGINE_INSTALL_DIR}:"; then
+        print_color "$BLUE" "✓ 目录已在 PATH 中，跳过配置文件写入"
         return
     fi
 
     # 添加到 PATH
-    if [ -w "$shell_config" ]; then
-        echo "" >> "$shell_config"
-        echo "# gclm-engine" >> "$shell_config"
-        echo "export PATH=\"\$PATH:${ENGINE_INSTALL_DIR}\"" >> "$shell_config"
+    if [ -w "$shell_config" ] || ( [ ! -f "$shell_config" ] && [ -w "$(dirname "$shell_config")" ] ); then
+        # 确保文件存在
+        touch "$shell_config" 2>/dev/null || true
+
+        # 添加配置（带分隔线确保清晰）
+        {
+            echo ""
+            echo "# gclm-engine"
+            echo "export PATH=\"\$PATH:${ENGINE_INSTALL_DIR}\""
+        } >> "$shell_config"
+
         print_color "$GREEN" "✓ 已添加到 PATH: $shell_config"
         print_color "$YELLOW" "  请运行 'source $shell_config' 或重新打开终端"
+    else
+        print_color "$YELLOW" "⚠ 无法写入 $shell_config"
+        print_color "$YELLOW" "  请手动添加以下内容:"
+        echo "  export PATH=\"\$PATH:${ENGINE_INSTALL_DIR}\""
     fi
 }
 

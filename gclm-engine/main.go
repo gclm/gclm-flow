@@ -6,23 +6,27 @@ import (
 	"path/filepath"
 
 	"github.com/gclm/gclm-flow/gclm-engine/internal/cli"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
 )
 
 func main() {
-	// Determine workflows directory
-	workflowsDir := os.Getenv("GCLM_ENGINE_WORKFLOWS_DIR")
-	if workflowsDir == "" {
-		// Default to ~/.gclm-flow/workflows
+	// Set embedded migrations for database initialization
+	db.SetMigrationsFS(MigrationsFS())
+
+	// Determine config directory
+	configDir := os.Getenv("GCLM_ENGINE_CONFIG_DIR")
+	if configDir == "" {
+		// Default to ~/.gclm-flow
 		homeDir, err := os.UserHomeDir()
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error getting home directory: %v\n", err)
 			os.Exit(1)
 		}
-		workflowsDir = filepath.Join(homeDir, ".gclm-flow", "workflows")
+		configDir = filepath.Join(homeDir, ".gclm-flow")
 	}
 
 	// Initialize CLI
-	c, err := cli.New(workflowsDir)
+	c, err := cli.New(configDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error initializing CLI: %v\n", err)
 		os.Exit(1)

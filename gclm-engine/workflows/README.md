@@ -147,4 +147,4 @@ cp code_simple.yaml my_workflow.yaml
 
 ## 更多信息
 
-- [gclm-engine 文档](../gclm-engine/README.md)
+- [gclm-engine 文档](../README.md)
