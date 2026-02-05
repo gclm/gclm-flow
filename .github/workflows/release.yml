@@ -45,11 +45,18 @@ jobs:
           cache: true
           cache-dependency-path: gclm-engine/go.sum
 
-      - name: Install build dependencies (Linux)
-        if: matrix.goos == 'linux'
+      - name: Install build dependencies (Linux amd64)
+        if: matrix.goos == 'linux' && matrix.goarch == 'amd64'
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc
+
+      - name: Install build dependencies (Linux arm64)
+        if: matrix.goos == 'linux' && matrix.goarch == 'arm64'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+          echo "CC=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
 
       - name: Build
         env:
