@@ -17,8 +17,8 @@ var schemaFS embed.FS
 
 // Database represents the SQLite database connection
 type Database struct {
-	db *sql.DB
-	dsn string
+	conn *sql.DB
+	dsn  string
 }
 
 // Config holds database configuration
@@ -59,8 +59,8 @@ func New(cfg *Config) (*Database, error) {
 	db.SetConnMaxLifetime(time.Hour)
 
 	database := &Database{
-		db: db,
-		dsn: dsn,
+		conn: db,
+		dsn:  dsn,
 	}
 
 	// Initialize schema
@@ -79,7 +79,7 @@ func (d *Database) init() error {
 		return fmt.Errorf("failed to read schema: %w", err)
 	}
 
-	_, err = d.db.Exec(string(schema))
+	_, err = d.conn.Exec(string(schema))
 	if err != nil {
 		return fmt.Errorf("failed to execute schema: %w", err)
 	}
@@ -89,12 +89,12 @@ func (d *Database) init() error {
 
 // Close closes the database connection
 func (d *Database) Close() error {
-	return d.db.Close()
+	return d.conn.Close()
 }
 
 // GetDB returns the underlying sql.DB instance
 func (d *Database) GetDB() *sql.DB {
-	return d.db
+	return d.conn
 }
 
 // InitWorkflows initializes builtin workflows from the workflows directory
@@ -105,7 +105,7 @@ func (d *Database) InitWorkflows(workflowsDir string) error {
 
 // BeginTx starts a new transaction
 func (d *Database) BeginTx() (*sql.Tx, error) {
-	return d.db.Begin()
+	return d.conn.Begin()
 }
 
 // Repository provides database operations
@@ -129,7 +129,7 @@ func (r *Repository) CreateTask(task *types.Task) error {
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := r.db.db.Exec(query,
+	_, err := r.db.conn.Exec(query,
 		task.ID,
 		task.PipelineID,
 		task.Prompt,
@@ -156,7 +156,7 @@ func (r *Repository) GetTask(id string) (*types.Task, error) {
 	task := &types.Task{}
 	var startedAt, completedAt, result, errMsg, createdAt, updatedAt sql.NullString
 
-	err := r.db.db.QueryRow(query, id).Scan(
+	err := r.db.conn.QueryRow(query, id).Scan(
 		&task.ID,
 		&task.PipelineID,
 		&task.Prompt,
@@ -226,7 +226,7 @@ func (r *Repository) ListTasks(status *types.TaskStatus, limit int) ([]*types.Ta
 		args = append(args, limit)
 	}
 
-	rows, err := r.db.db.Query(query, args...)
+	rows, err := r.db.conn.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -287,14 +287,14 @@ func (r *Repository) ListTasks(status *types.TaskStatus, limit int) ([]*types.Ta
 // UpdateTaskStatus updates the status of a task
 func (r *Repository) UpdateTaskStatus(id string, status types.TaskStatus) error {
 	query := `UPDATE tasks SET status = ?, updated_at = ? WHERE id = ?`
-	_, err := r.db.db.Exec(query, status, time.Now().Format(time.RFC3339), id)
+	_, err := r.db.conn.Exec(query, status, time.Now().Format(time.RFC3339), id)
 	return err
 }
 
 // UpdateTaskProgress updates the current phase of a task
 func (r *Repository) UpdateTaskProgress(id string, currentPhase int) error {
 	query := `UPDATE tasks SET current_phase = ?, updated_at = ? WHERE id = ?`
-	_, err := r.db.db.Exec(query, currentPhase, time.Now().Format(time.RFC3339), id)
+	_, err := r.db.conn.Exec(query, currentPhase, time.Now().Format(time.RFC3339), id)
 	return err
 }
 
@@ -306,7 +306,7 @@ func (r *Repository) CompleteTask(id string, result string) error {
 		WHERE id = ?
 	`
 	now := time.Now().Format(time.RFC3339)
-	_, err := r.db.db.Exec(query, types.TaskStatusCompleted, result, now, now, id)
+	_, err := r.db.conn.Exec(query, types.TaskStatusCompleted, result, now, now, id)
 	return err
 }
 
@@ -318,7 +318,7 @@ func (r *Repository) FailTask(id string, errMsg string) error {
 		WHERE id = ?
 	`
 	now := time.Now().Format(time.RFC3339)
-	_, err := r.db.db.Exec(query, types.TaskStatusFailed, errMsg, now, now, id)
+	_, err := r.db.conn.Exec(query, types.TaskStatusFailed, errMsg, now, now, id)
 	return err
 }
 
@@ -333,7 +333,7 @@ func (r *Repository) CreatePhase(phase *types.TaskPhase) error {
 		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := r.db.db.Exec(query,
+	_, err := r.db.conn.Exec(query,
 		phase.ID,
 		phase.TaskID,
 		phase.PhaseName,
@@ -361,7 +361,7 @@ func (r *Repository) GetPhasesByTask(taskID string) ([]*types.TaskPhase, error) 
 		ORDER BY sequence ASC
 	`
 
-	rows, err := r.db.db.Query(query, taskID)
+	rows, err := r.db.conn.Query(query, taskID)
 	if err != nil {
 		return nil, err
 	}
@@ -446,7 +446,7 @@ func (r *Repository) GetPhase(id string) (*types.TaskPhase, error) {
 	var inputPrompt, outputText, errMsg sql.NullString
 	var durationMs sql.NullInt64
 
-	err := r.db.db.QueryRow(query, id).Scan(
+	err := r.db.conn.QueryRow(query, id).Scan(
 		&phase.ID,
 		&phase.TaskID,
 		&phase.PhaseName,
@@ -502,14 +502,14 @@ func (r *Repository) GetPhase(id string) (*types.TaskPhase, error) {
 // UpdatePhaseStatus updates the status of a phase
 func (r *Repository) UpdatePhaseStatus(id string, status types.PhaseStatus) error {
 	query := `UPDATE task_phases SET status = ?, updated_at = ? WHERE id = ?`
-	_, err := r.db.db.Exec(query, status, time.Now().Format(time.RFC3339), id)
+	_, err := r.db.conn.Exec(query, status, time.Now().Format(time.RFC3339), id)
 	return err
 }
 
 // UpdatePhaseOutput updates the output of a completed phase
 func (r *Repository) UpdatePhaseOutput(id string, output string) error {
 	query := `UPDATE task_phases SET output_text = ?, updated_at = ? WHERE id = ?`
-	_, err := r.db.db.Exec(query, output, time.Now().Format(time.RFC3339), id)
+	_, err := r.db.conn.Exec(query, output, time.Now().Format(time.RFC3339), id)
 	return err
 }
 
@@ -522,7 +522,7 @@ func (r *Repository) CreateEvent(event *types.Event) error {
 		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`
 
-	_, err := r.db.db.Exec(query,
+	_, err := r.db.conn.Exec(query,
 		event.ID,
 		event.TaskID,
 		event.PhaseID,
@@ -548,7 +548,7 @@ func (r *Repository) GetEventsByTask(taskID string, limit int) ([]*types.Event, 
 		query += " LIMIT ?"
 	}
 
-	rows, err := r.db.db.Query(query, taskID, limit)
+	rows, err := r.db.conn.Query(query, taskID, limit)
 	if err != nil {
 		return nil, err
 	}

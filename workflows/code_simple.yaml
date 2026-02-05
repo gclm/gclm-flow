@@ -96,6 +96,17 @@ nodes:
     config:
       generate_report: true
 
+  # Phase 7: Documentation Update - 文档更新（可选）
+  - ref: doc_update
+    display_name: "Documentation Update / 文档更新"
+    agent: llmdoc
+    model: sonnet
+    depends_on: [summary]
+    timeout: 120
+    required: false
+    config:
+      ask_confirmation: true
+
 # 完成信号配置
 completion:
   signal: "<promise>GCLM_WORKFLOW_COMPLETE</promise>"

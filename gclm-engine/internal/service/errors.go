@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"strings"
 	"time"
 )
 
@@ -87,9 +86,4 @@ func (e *ErrorClassifier) IsRecoverable(err error) bool {
 	default:
 		return false
 	}
-}
-
-// contains 字符串包含检查（不区分大小写）
-func contains(s, substr string) bool {
-	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
 }

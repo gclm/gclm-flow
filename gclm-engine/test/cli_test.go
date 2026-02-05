@@ -15,9 +15,7 @@ func TestCLICommands(t *testing.T) {
 		}
 		defer c.Close()
 
-		// 测试 root 命令帮助
-		rootCmd := c.(*cli.CLI)
-		// CLI 结构体是私有的，这里简化测试
+		// CLI 初始化成功即通过
 		t.Log("CLI created successfully")
 	})
 

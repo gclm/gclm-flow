@@ -1,0 +1,94 @@
+name: analyze
+display_name: 代码分析工作流
+description: 用于代码分析、问题诊断、性能评估、安全审计等纯分析任务
+version: "1.0"
+workflow_type: ANALYZE
+
+nodes:
+  # Phase 1: Discovery - 理解分析目标
+  - ref: discovery
+    display_name: 需求发现
+    agent: investigator
+    model: haiku
+    required: true
+    timeout: 180
+    config:
+      output_format: structured
+
+  # Phase 2: Deep Analysis - 深度分析 (3 个并行任务)
+  - ref: code_analysis
+    display_name: 代码分析
+    agent: investigator
+    model: sonnet
+    required: true
+    timeout: 300
+    depends_on:
+      - discovery
+    parallel_group: analysis
+
+  - ref: dependency_analysis
+    display_name: 依赖分析
+    agent: investigator
+    model: sonnet
+    required: false
+    timeout: 180
+    depends_on:
+      - discovery
+    parallel_group: analysis
+
+  - ref: performance_analysis
+    display_name: 性能分析
+    agent: investigator
+    model: sonnet
+    required: false
+    timeout: 180
+    depends_on:
+      - discovery
+    parallel_group: analysis
+
+  # Phase 3: Security Review - 安全审查 (可选)
+  - ref: security_review
+    display_name: 安全审查
+    agent: security-guidance
+    model: sonnet
+    required: false
+    timeout: 180
+    depends_on:
+      - code_analysis
+
+  # Phase 4: Report - 生成分析报告
+  - ref: report
+    display_name: 分析报告
+    agent: investigator
+    model: sonnet
+    required: true
+    timeout: 300
+    depends_on:
+      - code_analysis
+      - security_review
+    config:
+      include_recommendations: true
+      format: structured
+
+  # Phase 5: Documentation Update - 文档更新 (可选)
+  - ref: doc_update
+    display_name: 文档更新
+    agent: llmdoc
+    model: sonnet
+    required: false
+    timeout: 120
+    depends_on:
+      - report
+    config:
+      ask_confirmation: true
+
+# 完成信号配置
+completion:
+  signal: "<promise>GCLM_WORKFLOW_COMPLETE</promise>"
+  final_status: completed
+
+# 错误处理配置
+error_handling:
+  max_retries: 1
+  retry_on: [timeout, api_error]
+  continue_on_non_required: true

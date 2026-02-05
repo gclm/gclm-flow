@@ -5,105 +5,158 @@
 ```
 gclm-flow/
 ├── README.md                  # 项目文档
-├── install.sh                 # 全局安装脚本
-├── CLAUDE.example.md          # 核心配置示例
+├── CLAUDE.md                 # 项目特定配置
+├── CLAUDE.example.md         # 全局配置模板 (→ ~/.claude/CLAUDE.md)
+├── install.sh                # 安装脚本 (gclm-engine + 全局配置)
 ├── settings.example.json      # MCP 配置示例
 │
-├── agents/                    # 自定义 Agent 定义
-│   ├── investigator.md        # 代码库调查 Agent
-│   ├── architect.md           # 架构设计 Agent
-│   ├── worker.md              # 任务执行 Agent
-│   ├── tdd-guide.md           # TDD 指导 Agent
-│   ├── spec-guide.md          # SpecDD 指导 Agent
-│   └── code-reviewer.md       # 代码审查 Agent
+├── gclm-engine/              # Go 引擎 (工作流编排和状态管理)
+│   ├── main.go               # 入口文件
+│   ├── go.mod                # Go 模块定义
+│   ├── Makefile              # 构建脚本
+│   ├── internal/             # 内部包
+│   │   ├── cli/              # CLI 命令 (cobra)
+│   │   │   └── commands.go   # workflow/task 命令
+│   │   ├── db/               # 数据库操作
+│   │   │   ├── database.go   # Database 初始化
+│   │   │   └── workflow.go   # Workflow Repository
+│   │   ├── pipeline/         # YAML 解析
+│   │   │   └── parser.go     # 工作流解析、依赖检查
+│   │   └── service/          # 业务逻辑
+│   │       ├── task.go       # 任务服务 (智能分流)
+│   │       └── errors.go     # 错误定义
+│   ├── pkg/                  # 共享包
+│   │   └── types/            # 类型定义
+│   │       ├── pipeline.go   # Pipeline 类型
+│   │       └── types.go      # 通用类型
+│   └── test/                 # 测试文件
 │
-├── commands/                  # Claude Code 命令定义
-│   ├── gclm.md                # 智能分流工作流命令
-│   ├── investigate.md         # 代码库调查命令
-│   ├── tdd.md                 # 测试驱动开发命令
-│   ├── spec.md                # 规范驱动开发命令
-│   └── llmdoc.md              # 文档生成命令
+├── workflows/                # 工作流定义 (统一位置)
+│   ├── code_simple.yaml     # CODE_SIMPLE 工作流
+│   ├── code_complex.yaml    # CODE_COMPLEX 工作流
+│   ├── document.yaml        # DOCUMENT 工作流
+│   ├── examples/            # 自定义工作流示例
+│   │   ├── custom_simple.yaml
+│   │   ├── custom_document.yaml
+│   │   └── custom_complex.yaml
+│   └── README.md            # 工作流说明
 │
-├── skills/                    # 核心工作流 Skill
+├── agents/                   # Agent 定义
+│   ├── investigator.md      # 代码库调查 Agent
+│   ├── architect.md         # 架构设计 Agent
+│   ├── spec-guide.md        # SpecDD 指导 Agent
+│   ├── tdd-guide.md         # TDD 指导 Agent
+│   ├── worker.md            # 任务执行 Agent
+│   ├── code-reviewer.md     # 代码审查 Agent
+│   └── recorder.md          # 文档记录 Agent
+│
+├── skills/                   # Claude Code Skills
 │   └── gclm/
-│       ├── SKILL.md           # Skill 定义和逻辑
-│       └── setup-gclm.sh      # 状态初始化脚本
+│       └── SKILL.md         # 智能分流工作流 Skill
 │
-├── rules/                     # 工作流规则文档
-│   ├── agents.md              # Agent 编排规则
-│   ├── llmdoc.md              # llmdoc 文档规则
-│   ├── phases.md              # 阶段流程规则
-│   ├── spec.md                # SpecDD 规范
-│   └── tdd.md                 # TDD 规范
+├── rules/                    # 工作流规则文档
+│   ├── agents.md            # Agent 编排规则
+│   ├── llmdoc.md            # llmdoc 文档规则
+│   ├── phases.md            # 阶段流程规则
+│   ├── spec.md              # SpecDD 规范
+│   └── tdd.md               # TDD 规范
 │
-├── hooks/                     # Claude Code Hooks
-│   ├── notify.sh              # 通知 Hook
-│   └── stop-gclm-loop.sh      # 停止 Hook
+├── commands/                 # Claude Code 命令定义 (已废弃)
+│   ├── gclm.md
+│   ├── investigate.md
+│   ├── tdd.md
+│   ├── spec.md
+│   └── llmdoc.md
 │
-├── .claude-plugin/            # 插件元数据
-│   ├── plugin.json            # 插件配置
-│   └── marketplace.json       # 市场配置
+├── hooks/                    # Claude Code Hooks
+│   └── stop-gclm-loop.sh    # 停止 Hook
 │
-└── llmdoc/                    # LLM 优化文档
-    ├── index.md               # 文档索引
-    ├── overview/              # 项目概览
-    ├── architecture/          # 架构设计
-    ├── guides/                # 使用指南
-    └── reference/             # 参考文档
+├── .github/                 # GitHub 配置
+│   └── workflows/
+│       └── release.yml      # Release 工作流
+│
+└── llmdoc/                   # LLM 优化文档
+    ├── index.md             # 文档索引
+    ├── overview/            # 项目概览
+    │   ├── project.md
+    │   ├── tech-stack.md
+    │   └── structure.md
+    ├── architecture/        # 架构设计
+    │   ├── system.md        # 系统架构
+    │   ├── workflows.md     # 工作流配置
+    │   ├── agents.md        # Agent 体系
+    │   ├── code-search.md   # 代码搜索策略
+    │   └── database.md      # 数据库设计
+    ├── guides/              # 使用指南
+    │   ├── installation.md
+    │   ├── quickstart.md
+    │   └── workflow-development.md
+    └── reference/           # 参考文档
+        ├── commands.md
+        ├── workflows.md
+        └── configuration.md
 ```
 
 ---
 
-## 目录说明
+## 关键目录说明
+
+### `gclm-engine/`
+
+Go 引擎，负责工作流编排和状态管理。
+
+| 子目录 | 职责 |
+|:---|:---|
+| `internal/cli/` | CLI 命令，输出 JSON 供 Skills 调用 |
+| `internal/db/` | SQLite 数据库操作 |
+| `internal/pipeline/` | YAML 工作流解析、依赖检查 |
+| `internal/service/` | 任务服务（智能分流、阶段管理） |
+| `pkg/types/` | 共享数据结构定义 |
+
+### `workflows/`
+
+工作流定义目录，所有工作流 YAML 文件统一存放。
+
+| 文件 | 类型 | 阶段数 |
+|:---|:---|:---:|
+| `code_simple.yaml` | CODE_SIMPLE | 6 |
+| `code_complex.yaml` | CODE_COMPLEX | 9 |
+| `document.yaml` | DOCUMENT | 7 |
+| `examples/*.yaml` | 自定义 | 可变 |
 
 ### `agents/`
 
-自定义 Agent 定义文件，每个 Agent 包含：
-- 职责描述
-- 模型选择
-- 输入输出格式
-- 使用场景
+Agent 定义文件，定义每个 Agent 的职责、模型选择和使用场景。
 
-### `commands/`
+### `skills/gclm/`
 
-Claude Code 命令定义，用户可通过 `/command` 语法调用：
-- `/gclm` - 智能分流工作流
-- `/investigate` - 代码库调查
-- `/tdd` - 测试驱动开发
-- `/spec` - 规范驱动开发
-- `/llmdoc` - 文档生成/更新
-
-### `skills/`
-
-核心工作流 Skill，包含：
-- `SKILL.md` - Skill 定义和完整工作流逻辑
-- `setup-gclm.sh` - 状态文件初始化脚本
+主 Skill 定义，编排工作流调用 gclm-engine 命令。
 
 ### `rules/`
 
-工作流规则文档，定义：
-- Agent 编排规则
-- llmdoc 文档规则
-- 阶段流程规则
-- SpecDD/TDD 规范
+工作流规则文档，定义 Agent 编排、阶段流程、SpecDD/TDD 规范。
 
-### `hooks/`
+### `.github/workflows/`
 
-Claude Code Hooks：
-- `notify.sh` - 通知用户工作流状态
-- `stop-gclm-loop.sh` - 停止循环时清理状态
-
-### `.claude-plugin/`
-
-插件元数据，用于 Claude Code 插件市场：
-- `plugin.json` - 插件配置和依赖
-- `marketplace.json` - 市场展示信息
+GitHub Actions 工作流，用于 CI/CD 和 Release。
 
 ### `llmdoc/`
 
-LLM 优化的项目文档：
-- `index.md` - 导航入口
-- `overview/` - 项目概览
-- `architecture/` - 架构设计
-- `guides/` - 使用指南
-- `reference/` - 参考文档
+LLM 优化的项目文档，帮助 AI 理解项目结构。
+
+---
+
+## 安装位置
+
+install.sh 安装后的文件位置：
+
+| 文件/目录 | 安装位置 |
+|:---|:---|
+| gclm-engine 二进制 | `~/.gclm-flow/gclm-engine` |
+| 工作流文件 | `~/.gclm-flow/workflows/*.yaml` |
+| SQLite 数据库 | `~/.gclm-flow/gclm-engine.db` |
+| 全局配置 | `~/.claude/CLAUDE.md` |
+| Agents | `~/.claude/agents/*.md` |
+| Skills | `~/.claude/skills/gclm/SKILL.md` |
+| Rules | `~/.claude/rules/*.md` |
+| Hooks | `~/.claude/hooks/*.sh` |

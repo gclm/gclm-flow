@@ -74,10 +74,12 @@ llmdoc/
 代码变更后必须询问：
 
 ```
-AskUserQuestion: "是否使用 recorder agent 更新项目文档？"
+AskUserQuestion: "是否需要更新项目文档？"
 ```
 
-**仅在用户确认后才调用 recorder agent 更新文档**
+**仅在用户确认后才调用 llmdoc Agent 更新文档**
+
+详见: `agents/llmdoc.md`
 
 ---
 
@@ -240,7 +242,7 @@ llmdoc/
 
 - **无需用户确认**: 直接执行生成
 - **最小化生成**: 只生成基础文档
-- **增量完善**: 后续可在 Phase 7 补充 architecture/ 和 guides/
+- **增量完善**: 后续可手动调用 `/llmdoc` 补充 architecture/ 和 guides/
 - **保持简洁**: 避免过度生成无用文档
 
 ### 5. 生成后处理

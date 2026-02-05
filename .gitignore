@@ -6,3 +6,4 @@ ClaudeNotifier.app/
 # 项目生成目录（不提交到 git）
 /scripts/
 /docs/
+/gclm-engine/build/

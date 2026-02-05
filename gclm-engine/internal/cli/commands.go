@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/errors"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/pipeline"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/service"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
@@ -373,7 +374,8 @@ func (c *CLI) runTaskCreate(cmd *cobra.Command, args []string) error {
 		// 如果指定了 pipeline 名称，需要先获取 workflow_type
 		pipe, err := c.parser.LoadPipeline(pipelineName)
 		if err != nil {
-			return fmt.Errorf("failed to load pipeline: %w", err)
+			c.printFriendlyError(errors.PipelineLoadError(pipelineName, err))
+			return err
 		}
 		task, err = c.taskSvc.CreateTask(ctx, prompt, pipe.WorkflowType)
 	} else if workflowType != "" {
@@ -384,7 +386,8 @@ func (c *CLI) runTaskCreate(cmd *cobra.Command, args []string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("failed to create task: %w", err)
+		c.printFriendlyError(err)
+		return err
 	}
 
 	// 输出结果
@@ -409,7 +412,8 @@ func (c *CLI) runTaskGet(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	status, err := c.taskSvc.GetTaskStatus(ctx, taskID)
 	if err != nil {
-		return fmt.Errorf("failed to get task: %w", err)
+		c.printFriendlyError(errors.TaskNotFound(taskID))
+		return err
 	}
 
 	c.printOutput(status, jsonOutput)
@@ -911,58 +915,9 @@ func (c *CLI) runPipelineRecommend(cmd *cobra.Command, args []string) error {
 // 辅助方法
 // ============================================================================
 
-// detectWorkflowType 检测工作流类型（与 service 层保持一致）
+// detectWorkflowType 检测工作流类型（使用统一分类器）
 func (c *CLI) detectWorkflowType(prompt string) string {
-	docPhrases := []string{"编写文档", "文档编写", "方案设计", "设计文档", "需求分析", "技术方案", "架构设计", "api文档", "spec文档"}
-	docKeywords := []string{"文档", "方案", "需求", "分析", "架构", "规范", "说明"}
-
-	bugPhrases := []string{"修复bug", "fix bug", "bug修复", "修复错误", "解决bug"}
-	bugKeywords := []string{"bug", "修复", "fix error", "error fix", "调试", "debug"}
-
-	featureKeywords := []string{"功能", "模块", "开发", "重构", "实现"}
-
-	score := 0
-
-	// 文档类短语（+5分）
-	for _, phrase := range docPhrases {
-		if strings.Contains(strings.ToLower(prompt), strings.ToLower(phrase)) {
-			score += 5
-		}
-	}
-	// 文档类单词（+3分）
-	for _, kw := range docKeywords {
-		if contains(prompt, kw) {
-			score += 3
-		}
-	}
-
-	// Bug修复短语（-5分）
-	for _, phrase := range bugPhrases {
-		if strings.Contains(strings.ToLower(prompt), strings.ToLower(phrase)) {
-			score -= 5
-		}
-	}
-	// Bug修复单词（-3分）
-	for _, kw := range bugKeywords {
-		if contains(prompt, kw) {
-			score -= 3
-		}
-	}
-
-	// 功能开发单词（-1分）
-	for _, kw := range featureKeywords {
-		if contains(prompt, kw) {
-			score -= 1
-		}
-	}
-
-	// 分类
-	if score >= 3 {
-		return "DOCUMENT"
-	} else if score <= -3 {
-		return "CODE_SIMPLE"
-	}
-	return "CODE_COMPLEX"
+	return service.DetectWorkflowType(prompt)
 }
 
 // generateStateFileMarkdown 生成状态文件 Markdown 内容
@@ -1253,10 +1208,6 @@ func (c *CLI) runWorkflowInfo(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func contains(s, substr string) bool {
-	return strings.Contains(strings.ToLower(s), strings.ToLower(substr))
-}
-
 func findNode(pipeline *types.Pipeline, ref string) *types.PipelineNode {
 	for i := range pipeline.Nodes {
 		if pipeline.Nodes[i].Ref == ref {
@@ -1271,4 +1222,81 @@ func errMsg(err error) string {
 		return ""
 	}
 	return err.Error()
+}
+
+// printFriendlyError 打印友好的错误信息
+func (c *CLI) printFriendlyError(err error) {
+	if err == nil {
+		return
+	}
+
+	// 检查是否为友好错误
+	if friendly, ok := err.(*errors.FriendlyError); ok {
+		fmt.Fprintln(os.Stderr, friendly.FormatUser())
+		return
+	}
+
+	// 对于非友好错误，尝试包装
+	errStr := err.Error()
+
+	// 根据错误内容提供友好提示
+	switch {
+	case strings.Contains(errStr, "not found"):
+		if strings.Contains(errStr, "task") {
+			fmt.Fprintln(os.Stderr, errors.TaskNotFound(extractID(errStr, "task")).FormatUser())
+		} else if strings.Contains(errStr, "workflow") || strings.Contains(errStr, "pipeline") {
+			fmt.Fprintln(os.Stderr, errors.WorkflowNotFound(extractID(errStr, "")).FormatUser())
+		}
+	case strings.Contains(errStr, "failed to load pipeline"):
+		fmt.Fprintln(os.Stderr, errors.PipelineLoadError(extractID(errStr, ""), err).FormatUser())
+	case strings.Contains(errStr, "no such file"):
+		fmt.Fprintln(os.Stderr, errors.ConfigDirectoryNotFound(extractPath(errStr)).FormatUser())
+	case strings.Contains(errStr, "yaml") || strings.Contains(errStr, "unmarshal"):
+		fmt.Fprintln(os.Stderr, errors.InvalidYAMLFormat(extractPath(errStr), err).FormatUser())
+	default:
+		// 默认输出原始错误
+		fmt.Fprintf(os.Stderr, "❌ 错误: %s\n", errStr)
+		fmt.Fprintln(os.Stderr, "\n💡 如需帮助，请运行 `gclm-engine --help`")
+	}
+}
+
+// extractID 从错误消息中提取 ID
+func extractID(errStr, prefix string) string {
+	// 简单实现：查找引号或单引号中的内容
+	start := strings.Index(errStr, "'")
+	if start == -1 {
+		start = strings.Index(errStr, "\"")
+	}
+	if start == -1 {
+		return "unknown"
+	}
+	end := strings.Index(errStr[start+1:], "'")
+	if end == -1 {
+		end = strings.Index(errStr[start+1:], "\"")
+	}
+	if end == -1 {
+		return "unknown"
+	}
+	return errStr[start+1 : start+1+end]
+}
+
+// extractPath 从错误消息中提取路径
+func extractPath(errStr string) string {
+	// 简单实现：查找 .yaml 或 .yml 文件
+	yamlIdx := strings.Index(errStr, ".yaml")
+	if yamlIdx == -1 {
+		yamlIdx = strings.Index(errStr, ".yml")
+	}
+	if yamlIdx == -1 {
+		return "unknown"
+	}
+	// 向前查找文件名开始
+	start := strings.LastIndex(errStr[:yamlIdx], "/")
+	if start == -1 {
+		start = strings.LastIndex(errStr[:yamlIdx], " ")
+	}
+	if start == -1 {
+		return "unknown"
+	}
+	return errStr[start+1 : yamlIdx+5]
 }

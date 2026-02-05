@@ -12,6 +12,7 @@
 | `tdd-guide` | TDD 流程指导 | Sonnet 4.5 | `agents/tdd-guide.md` |
 | `spec-guide` | SpecDD 规范文档编写 | Opus 4.5 | `agents/spec-guide.md` |
 | `code-reviewer` | 代码审查 | Sonnet 4.5 | `agents/code-reviewer.md` |
+| `llmdoc` | LLM 优化文档生成/更新 | Sonnet 4.5 | `agents/llmdoc.md` |
 
 ### Claude Code 官方插件
 

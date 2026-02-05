@@ -112,9 +112,9 @@ install_gclm_engine() {
     mkdir -p "$ENGINE_INSTALL_DIR"
 
     # 检查是否存在本地编译的二进制
-    if [ -f "$PROJECT_DIR/gclm-engine/gclm-engine" ]; then
+    if [ -f "$PROJECT_DIR/gclm-engine/build/gclm-engine" ]; then
         print_color "$BLUE" "使用本地编译的二进制..."
-        cp "$PROJECT_DIR/gclm-engine/gclm-engine" "$ENGINE_INSTALL_DIR/$ENGINE_BINARY_NAME"
+        cp "$PROJECT_DIR/gclm-engine/build/gclm-engine" "$ENGINE_INSTALL_DIR/$ENGINE_BINARY_NAME"
         chmod +x "$ENGINE_INSTALL_DIR/$ENGINE_BINARY_NAME"
         print_color "$GREEN" "✓ 二进制已安装"
     else

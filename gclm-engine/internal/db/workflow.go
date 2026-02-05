@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 	"gopkg.in/yaml.v3"
@@ -32,27 +33,50 @@ type WorkflowRecord struct {
 }
 
 // InitializeBuiltinWorkflows loads builtin workflows from YAML files into the database
+// Scans the workflows directory for all .yaml files (excluding examples/)
 func (r *WorkflowRepository) InitializeBuiltinWorkflows(workflowsDir string) error {
-	// Builtin workflow definitions
-	builtinWorkflows := []struct {
-		file   string
-		name   string
-		wtype  string
-	}{
-		{"document.yaml", "document", "document"},
-		{"code_simple.yaml", "code_simple", "code_simple"},
-		{"code_complex.yaml", "code_complex", "code_complex"},
+	// Read all YAML files from workflows directory
+	entries, err := os.ReadDir(workflowsDir)
+	if err != nil {
+		return fmt.Errorf("failed to read workflows directory: %w", err)
 	}
 
-	for _, bw := range builtinWorkflows {
+	for _, entry := range entries {
+		// Skip directories and non-YAML files
+		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+			continue
+		}
+
+		// Skip files in examples/ subdirectory (if processed recursively)
+		if strings.HasPrefix(entry.Name(), "example") {
+			continue
+		}
+
+		yamlPath := filepath.Join(workflowsDir, entry.Name())
+
+		// Read YAML file
+		yamlData, err := os.ReadFile(yamlPath)
+		if err != nil {
+			return fmt.Errorf("failed to read workflow file %s: %w", yamlPath, err)
+		}
+
+		// Parse YAML to get workflow metadata
+		var pipeline types.Pipeline
+		if err := yaml.Unmarshal(yamlData, &pipeline); err != nil {
+			return fmt.Errorf("failed to parse workflow YAML %s: %w", yamlPath, err)
+		}
+
+		// Extract workflow name from filename (remove .yaml extension)
+		workflowName := strings.TrimSuffix(entry.Name(), ".yaml")
+
 		// Check if workflow already exists
 		var exists bool
-		err := r.db.db.QueryRow(
+		checkErr := r.db.conn.QueryRow(
 			"SELECT EXISTS(SELECT 1 FROM workflows WHERE name = ? AND is_builtin = 1)",
-			bw.name,
+			workflowName,
 		).Scan(&exists)
-		if err != nil {
-			return fmt.Errorf("failed to check workflow existence: %w", err)
+		if checkErr != nil {
+			return fmt.Errorf("failed to check workflow existence: %w", checkErr)
 		}
 
 		// Skip if already exists
@@ -60,27 +84,20 @@ func (r *WorkflowRepository) InitializeBuiltinWorkflows(workflowsDir string) err
 			continue
 		}
 
-		// Read YAML file
-		yamlPath := filepath.Join(workflowsDir, bw.file)
-		yamlData, err := os.ReadFile(yamlPath)
-		if err != nil {
-			return fmt.Errorf("failed to read workflow file %s: %w", yamlPath, err)
-		}
-
-		// Parse YAML to get display name and description
-		var pipeline types.Pipeline
-		if err := yaml.Unmarshal(yamlData, &pipeline); err != nil {
-			return fmt.Errorf("failed to parse workflow YAML %s: %w", yamlPath, err)
+		// Get workflow_type from pipeline or use workflowName as default
+		workflowType := pipeline.WorkflowType
+		if workflowType == "" {
+			workflowType = workflowName
 		}
 
 		// Insert into database
-		_, err = r.db.db.Exec(`
+		_, err = r.db.conn.Exec(`
 			INSERT INTO workflows (name, display_name, description, workflow_type, version, is_builtin, config_yaml)
 			VALUES (?, ?, ?, ?, ?, 1, ?)
-		`, bw.name, pipeline.DisplayName, pipeline.Description, bw.wtype, pipeline.Version, string(yamlData))
+		`, workflowName, pipeline.DisplayName, pipeline.Description, workflowType, pipeline.Version, string(yamlData))
 
 		if err != nil {
-			return fmt.Errorf("failed to insert workflow %s: %w", bw.name, err)
+			return fmt.Errorf("failed to insert workflow %s: %w", workflowName, err)
 		}
 	}
 
@@ -89,7 +106,7 @@ func (r *WorkflowRepository) InitializeBuiltinWorkflows(workflowsDir string) err
 
 // ListWorkflows returns all workflows
 func (r *WorkflowRepository) ListWorkflows() ([]WorkflowRecord, error) {
-	rows, err := r.db.db.Query(`
+	rows, err := r.db.conn.Query(`
 		SELECT name, display_name, description, workflow_type, version, is_builtin, config_yaml
 		FROM workflows
 		ORDER BY is_builtin DESC, name ASC
@@ -115,7 +132,7 @@ func (r *WorkflowRepository) ListWorkflows() ([]WorkflowRecord, error) {
 // GetWorkflow retrieves a workflow by name
 func (r *WorkflowRepository) GetWorkflow(name string) (*WorkflowRecord, error) {
 	var w WorkflowRecord
-	err := r.db.db.QueryRow(`
+	err := r.db.conn.QueryRow(`
 		SELECT name, display_name, description, workflow_type, version, is_builtin, config_yaml
 		FROM workflows
 		WHERE name = ?
@@ -134,7 +151,7 @@ func (r *WorkflowRepository) GetWorkflow(name string) (*WorkflowRecord, error) {
 // GetWorkflowByType retrieves a workflow by workflow_type
 func (r *WorkflowRepository) GetWorkflowByType(workflowType string) (*WorkflowRecord, error) {
 	var w WorkflowRecord
-	err := r.db.db.QueryRow(`
+	err := r.db.conn.QueryRow(`
 		SELECT name, display_name, description, workflow_type, version, is_builtin, config_yaml
 		FROM workflows
 		WHERE workflow_type = ?
@@ -161,7 +178,7 @@ func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error
 
 	// Check if workflow already exists
 	var exists bool
-	err := r.db.db.QueryRow("SELECT EXISTS(SELECT 1 FROM workflows WHERE name = ?)", name).Scan(&exists)
+	err := r.db.conn.QueryRow("SELECT EXISTS(SELECT 1 FROM workflows WHERE name = ?)", name).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("failed to check workflow existence: %w", err)
 	}
@@ -185,7 +202,7 @@ func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error
 	}
 
 	// Insert into database
-	_, err = r.db.db.Exec(`
+	_, err = r.db.conn.Exec(`
 		INSERT INTO workflows (name, display_name, description, workflow_type, version, is_builtin, config_yaml)
 		VALUES (?, ?, ?, ?, ?, 0, ?)
 	`, name, pipeline.DisplayName, pipeline.Description, workflowType, pipeline.Version, string(yamlData))
@@ -201,7 +218,7 @@ func (r *WorkflowRepository) InstallWorkflow(name string, yamlData []byte) error
 func (r *WorkflowRepository) UninstallWorkflow(name string) error {
 	// Check if it's a builtin workflow
 	var isBuiltin bool
-	err := r.db.db.QueryRow("SELECT is_builtin FROM workflows WHERE name = ?", name).Scan(&isBuiltin)
+	err := r.db.conn.QueryRow("SELECT is_builtin FROM workflows WHERE name = ?", name).Scan(&isBuiltin)
 	if err == sql.ErrNoRows {
 		return fmt.Errorf("workflow '%s' not found", name)
 	}
@@ -214,7 +231,7 @@ func (r *WorkflowRepository) UninstallWorkflow(name string) error {
 	}
 
 	// Delete the workflow
-	result, err := r.db.db.Exec("DELETE FROM workflows WHERE name = ?", name)
+	result, err := r.db.conn.Exec("DELETE FROM workflows WHERE name = ?", name)
 	if err != nil {
 		return fmt.Errorf("failed to uninstall workflow: %w", err)
 	}

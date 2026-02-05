@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
@@ -280,59 +279,9 @@ func (s *TaskService) GetTaskStatus(ctx context.Context, taskID string) (*TaskSt
 
 // 内部方法
 
-// detectWorkflowType 检测工作流类型（替代 setup-gclm.sh 的 detect_workflow_type）
+// detectWorkflowType 检测工作流类型（使用统一分类器）
 func (s *TaskService) detectWorkflowType(prompt string) string {
-	// 关键词检测（短语优先）
-	docPhrases := []string{"编写文档", "文档编写", "方案设计", "设计文档", "需求分析", "技术方案", "架构设计", "api文档", "spec文档"}
-	docKeywords := []string{"文档", "方案", "需求", "分析", "架构", "规范", "说明"}
-
-	bugPhrases := []string{"修复bug", "fix bug", "bug修复", "修复错误", "解决bug"}
-	bugKeywords := []string{"bug", "修复", "fix error", "error fix", "调试", "debug"}
-
-	featureKeywords := []string{"功能", "模块", "开发", "重构", "实现"}
-
-	score := 0
-
-	// 文档类短语（+5分）
-	for _, phrase := range docPhrases {
-		if strings.Contains(strings.ToLower(prompt), strings.ToLower(phrase)) {
-			score += 5
-		}
-	}
-	// 文档类单词（+3分）
-	for _, kw := range docKeywords {
-		if contains(prompt, kw) {
-			score += 3
-		}
-	}
-
-	// Bug修复短语（-5分）
-	for _, phrase := range bugPhrases {
-		if strings.Contains(strings.ToLower(prompt), strings.ToLower(phrase)) {
-			score -= 5
-		}
-	}
-	// Bug修复单词（-3分）
-	for _, kw := range bugKeywords {
-		if contains(prompt, kw) {
-			score -= 3
-		}
-	}
-
-	// 功能开发单词（-1分）
-	for _, kw := range featureKeywords {
-		if contains(prompt, kw) {
-			score -= 1
-		}
-	}
-
-	// 分类
-	if score >= 3 {
-		return "DOCUMENT"
-	} else if score <= -3 {
-		return "CODE_SIMPLE"
-	}
-	return "CODE_COMPLEX"
+	return DetectWorkflowType(prompt)
 }
 
 func (s *TaskService) createPhases(task *types.Task, pipe *types.Pipeline) error {

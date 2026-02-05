@@ -66,3 +66,14 @@ nodes:
     depends_on:
       - draft
       - review
+
+  - ref: doc_update
+    display_name: 文档更新
+    agent: llmdoc
+    model: sonnet
+    required: false
+    timeout: 120
+    depends_on:
+      - summary
+    config:
+      ask_confirmation: true
