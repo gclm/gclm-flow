@@ -1,13 +1,17 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
+	"github.com/gclm/gclm-flow/gclm-engine/internal/config"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/errors"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
@@ -336,7 +340,33 @@ func (c *CLI) createWorkflowCommand() *cobra.Command {
 		RunE:  c.runWorkflowInfo,
 	}
 
-	cmd.AddCommand(startCmd, nextCmd, validateCmd, installCmd, uninstallCmd, listCmd, exportCmd, infoCmd)
+	// workflow init - 初始化引擎配置
+	initCmd := &cobra.Command{
+		Use:   "init",
+		Short: "Initialize gclm-engine configuration",
+		Long:  "Create default configuration and workflow files in ~/.gclm-flow/",
+		RunE:  c.runWorkflowInit,
+	}
+
+	// workflow sync - 同步工作流到数据库
+	syncCmd := &cobra.Command{
+		Use:   "sync [yaml-file]",
+		Short: "Sync workflow YAML files to database",
+		Long: "Sync workflow YAML files (draft) to database (production).\n\n" +
+			"Arguments:\n" +
+			"  yaml-file    Path to YAML file (relative or absolute)\n" +
+			"               If omitted, sync all workflows from workflows/ directory\n\n" +
+			"Examples:\n" +
+			"  gclm-engine workflow sync                           # Sync all\n" +
+			"  gclm-engine workflow sync workflows/feat.yaml      # Sync specific file\n" +
+			"  gclm-engine workflow sync ../custom/my_workflow.yaml # Sync from custom path\n\n" +
+			"YAML files are treated as draft data, database stores production data.\n" +
+			"Modifying YAML files does not affect the running system until sync is executed.",
+		RunE: c.runWorkflowSync,
+	}
+	syncCmd.Flags().Bool("force", false, "Force sync even if validation fails")
+
+	cmd.AddCommand(startCmd, nextCmd, validateCmd, installCmd, uninstallCmd, listCmd, exportCmd, infoCmd, initCmd, syncCmd)
 
 	return cmd
 }
@@ -1072,14 +1102,17 @@ func (c *CLI) runWorkflowInstall(cmd *cobra.Command, args []string) error {
 	workflowName = strings.ReplaceAll(workflowName, "-", "_")
 	workflowName = strings.ReplaceAll(workflowName, " ", "_")
 
-	// Install to database
-	wfRepo := db.NewWorkflowRepository(c.db)
-	if err := wfRepo.InstallWorkflow(workflowName, input); err != nil {
-		return fmt.Errorf("failed to install: %w", err)
+	// Install: copy YAML file to workflows directory
+	workflowsDir := filepath.Join(c.configDir, "workflows")
+	destPath := filepath.Join(workflowsDir, workflowName+".yaml")
+
+	if err := os.WriteFile(destPath, input, 0644); err != nil {
+		return fmt.Errorf("failed to write workflow file: %w", err)
 	}
 
 	fmt.Printf("OK: Workflow '%s' installed\n", workflowName)
-	fmt.Printf("  Use: gclm-engine workflow start \"<task>\" --workflow %s\n", workflowName)
+	fmt.Printf("  File: %s\n", destPath)
+	fmt.Printf("  Note: Run 'gclm-engine workflow sync' to publish to database\n")
 
 	return nil
 }
@@ -1088,10 +1121,29 @@ func (c *CLI) runWorkflowInstall(cmd *cobra.Command, args []string) error {
 func (c *CLI) runWorkflowUninstall(cmd *cobra.Command, args []string) error {
 	workflowName := args[0]
 
-	// Uninstall from database
+	// Check if it's a builtin workflow
 	wfRepo := db.NewWorkflowRepository(c.db)
-	if err := wfRepo.UninstallWorkflow(workflowName); err != nil {
+	record, err := wfRepo.GetWorkflow(workflowName)
+	if err != nil {
 		return err
+	}
+
+	if record.IsBuiltin {
+		return fmt.Errorf("cannot uninstall builtin workflow '%s'", workflowName)
+	}
+
+	// Uninstall: delete YAML file
+	workflowsDir := filepath.Join(c.configDir, "workflows")
+	yamlPath := filepath.Join(workflowsDir, workflowName+".yaml")
+
+	if err := os.Remove(yamlPath); err != nil {
+		return fmt.Errorf("failed to remove workflow file: %w", err)
+	}
+
+	// Remove from database
+	_, err = c.db.GetDB().Exec("DELETE FROM workflows WHERE name = ?", workflowName)
+	if err != nil {
+		return fmt.Errorf("failed to remove from database: %w", err)
 	}
 
 	fmt.Printf("OK: Workflow '%s' uninstalled\n", workflowName)
@@ -1164,9 +1216,9 @@ func (c *CLI) runWorkflowExport(cmd *cobra.Command, args []string) error {
 
 	// Get workflow from database
 	wfRepo := db.NewWorkflowRepository(c.db)
-	wf, err := wfRepo.GetWorkflow(workflowName)
+	record, err := wfRepo.GetWorkflow(workflowName)
 	if err != nil {
-		return fmt.Errorf("failed to load: %w", err)
+		return fmt.Errorf("failed to get workflow: %w", err)
 	}
 
 	outputFile := workflowName + ".yaml"
@@ -1174,7 +1226,7 @@ func (c *CLI) runWorkflowExport(cmd *cobra.Command, args []string) error {
 		outputFile = args[1]
 	}
 
-	if err := os.WriteFile(outputFile, []byte(wf.ConfigYAML), 0644); err != nil {
+	if err := os.WriteFile(outputFile, []byte(record.ConfigYAML), 0644); err != nil {
 		return fmt.Errorf("failed to export: %w", err)
 	}
 
@@ -1188,14 +1240,14 @@ func (c *CLI) runWorkflowInfo(cmd *cobra.Command, args []string) error {
 
 	// Get workflow from database
 	wfRepo := db.NewWorkflowRepository(c.db)
-	wf, err := wfRepo.GetWorkflow(workflowName)
+	record, err := wfRepo.GetWorkflow(workflowName)
 	if err != nil {
-		return fmt.Errorf("failed to load: %w", err)
+		return fmt.Errorf("failed to get workflow: %w", err)
 	}
 
 	// Parse YAML to get workflow details
 	var wfDef types.Workflow
-	if err := yaml.Unmarshal([]byte(wf.ConfigYAML), &wfDef); err != nil {
+	if err := yaml.Unmarshal([]byte(record.ConfigYAML), &wfDef); err != nil {
 		return fmt.Errorf("failed to parse workflow: %w", err)
 	}
 
@@ -1216,6 +1268,345 @@ func (c *CLI) runWorkflowInfo(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// runWorkflowInit 初始化 gclm-engine 配置
+func (c *CLI) runWorkflowInit(cmd *cobra.Command, args []string) error {
+	fmt.Println("Initializing gclm-engine...")
+
+	// Create workflows directory
+	workflowsDir := filepath.Join(c.configDir, "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		return fmt.Errorf("failed to create workflows directory: %w", err)
+	}
+
+	// Copy default config if it doesn't exist
+	configPath := filepath.Join(c.configDir, "gclm_engine_config.yaml")
+	if _, err := os.Stat(configPath); os.IsNotExist(err) {
+		// Read default config from binary location
+		defaultConfigPath := filepath.Join(filepath.Dir(c.configDir), "workflow_config_default.yaml")
+		defaultConfig, err := os.ReadFile(defaultConfigPath)
+		if err != nil {
+			// Fallback: create minimal config
+			defaultConfig = []byte(`version: "1.0"
+
+workflow_types:
+  analyze:
+    display_name: "代码分析"
+    description: "代码分析、问题诊断、性能评估、架构分析"
+  feat:
+    display_name: "新功能"
+    description: "新功能开发、模块开发、功能实现"
+  fix:
+    display_name: "Bug 修复"
+    description: "Bug 修复、错误处理、问题解决"
+  docs:
+    display_name: "文档"
+    description: "文档编写、方案设计、需求分析、API 文档"
+
+engine:
+  database_path: "gclm-engine.db"
+  workflows_dir: "workflows"
+  log_level: "info"
+`)
+		}
+
+		if err := os.WriteFile(configPath, defaultConfig, 0644); err != nil {
+			return fmt.Errorf("failed to write config: %w", err)
+		}
+		fmt.Printf("  Created: %s\n", configPath)
+	} else {
+		fmt.Printf("  Exists: %s\n", configPath)
+	}
+
+	// Check for builtin workflow files
+	builtinDir := filepath.Join(filepath.Dir(c.configDir), "workflows")
+	builtinFiles, _ := os.ReadDir(builtinDir)
+
+	syncCount := 0
+	for _, f := range builtinFiles {
+		if strings.HasSuffix(f.Name(), ".yaml") {
+			srcPath := filepath.Join(builtinDir, f.Name())
+			dstPath := filepath.Join(workflowsDir, f.Name())
+
+			// Copy if not exists
+			if _, err := os.Stat(dstPath); os.IsNotExist(err) {
+				input, _ := os.ReadFile(srcPath)
+				os.WriteFile(dstPath, input, 0644)
+				fmt.Printf("  Created: %s\n", dstPath)
+				syncCount++
+			}
+		}
+	}
+
+	// Initial sync
+	if syncCount > 0 {
+		fmt.Println("\nSyncing workflows to database...")
+		wfRepo := db.NewWorkflowRepository(c.db)
+
+		// Sync each created workflow
+		for _, f := range builtinFiles {
+			if strings.HasSuffix(f.Name(), ".yaml") {
+				workflowName := strings.TrimSuffix(f.Name(), ".yaml")
+				yamlPath := filepath.Join(workflowsDir, f.Name())
+
+				_, err := c.syncOneWorkflow(wfRepo, workflowName, yamlPath, false)
+				if err != nil {
+					fmt.Fprintf(os.Stderr, "  Warning: failed to sync %s: %v\n", workflowName, err)
+				} else {
+					fmt.Printf("  ✓ %s\n", workflowName)
+				}
+			}
+		}
+	}
+
+	fmt.Println("\n✓ Initialization complete!")
+	fmt.Printf("  Config: %s\n", configPath)
+	fmt.Printf("  Workflows: %s\n", workflowsDir)
+	fmt.Println("\nNext steps:")
+	fmt.Println("  1. Edit workflow YAML files in the workflows directory")
+	fmt.Println("  2. Run 'gclm-engine workflow sync' to publish changes")
+	fmt.Println("  3. Run 'gclm-engine workflow list' to see available workflows")
+
+	return nil
+}
+
+// runWorkflowSync 同步工作流 YAML 文件到数据库
+func (c *CLI) runWorkflowSync(cmd *cobra.Command, args []string) error {
+	force, _ := cmd.Flags().GetBool("force")
+	workflowsDir := filepath.Join(c.configDir, "workflows")
+	wfRepo := db.NewWorkflowRepository(c.db)
+
+	if len(args) == 0 {
+		// Sync all workflows
+		fmt.Printf("Syncing workflows from %s...\n\n", workflowsDir)
+
+		entries, err := os.ReadDir(workflowsDir)
+		if err != nil {
+			return fmt.Errorf("failed to read workflows directory: %w", err)
+		}
+
+		successCount := 0
+		skipCount := 0
+		errorCount := 0
+
+		for _, entry := range entries {
+			if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".yaml") {
+				continue
+			}
+
+			workflowName := strings.TrimSuffix(entry.Name(), ".yaml")
+			yamlPath := filepath.Join(workflowsDir, entry.Name())
+
+			result, err := c.syncOneWorkflow(wfRepo, workflowName, yamlPath, force)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "✗ %s: %v\n", workflowName, err)
+				errorCount++
+			} else if result == "skipped" {
+				fmt.Printf("− %s: unchanged\n", workflowName)
+				skipCount++
+			} else {
+				fmt.Printf("✓ %s: synced\n", workflowName)
+				successCount++
+			}
+		}
+
+		fmt.Printf("\nSync complete: %d synced, %d unchanged, %d errors\n",
+			successCount, skipCount, errorCount)
+
+		if errorCount > 0 && !force {
+			return fmt.Errorf("%d workflows failed to sync", errorCount)
+		}
+
+		return nil
+	}
+
+	// Sync single workflow by file path
+	yamlPath := args[0]
+
+	// Expand path if relative
+	if !filepath.IsAbs(yamlPath) {
+		// Try workflows directory first
+		workflowsDirPath := filepath.Join(workflowsDir, yamlPath)
+		if _, err := os.Stat(workflowsDirPath); err == nil {
+			yamlPath = workflowsDirPath
+		} else {
+			// Use current directory
+			absPath, err := filepath.Abs(yamlPath)
+			if err != nil {
+				return fmt.Errorf("failed to resolve path: %w", err)
+			}
+			yamlPath = absPath
+		}
+	}
+
+	if _, err := os.Stat(yamlPath); os.IsNotExist(err) {
+		return fmt.Errorf("workflow file not found: %s", yamlPath)
+	}
+
+	// Extract workflow name from filename
+	workflowName := strings.TrimSuffix(filepath.Base(yamlPath), ".yaml")
+
+	result, err := c.syncOneWorkflow(wfRepo, workflowName, yamlPath, force)
+	if err != nil {
+		return err
+	}
+
+	if result == "skipped" {
+		fmt.Printf("%s: unchanged (no sync needed)\n", yamlPath)
+	} else {
+		fmt.Printf("%s: synced successfully\n", yamlPath)
+	}
+
+	return nil
+}
+
+// syncResult 表示同步结果
+type syncResult string
+
+const (
+	syncResultSuccess syncResult = "synced"
+	syncResultSkipped syncResult = "skipped"
+)
+
+// syncOneWorkflow 同步单个工作流
+func (c *CLI) syncOneWorkflow(wfRepo *db.WorkflowRepository, workflowName, yamlPath string, force bool) (syncResult, error) {
+	// Read YAML file
+	yamlData, err := os.ReadFile(yamlPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file: %w", err)
+	}
+
+	// Check if workflow exists and compare
+	var existingYAML string
+	var exists bool
+	err = c.db.GetDB().QueryRow("SELECT config_yaml FROM workflows WHERE name = ?", workflowName).
+		Scan(&existingYAML)
+
+	if err == sql.ErrNoRows {
+		exists = false
+	} else if err != nil {
+		return "", fmt.Errorf("failed to check existing workflow: %w", err)
+	} else {
+		exists = true
+	}
+
+	// Check if content changed
+	if exists && string(yamlData) == existingYAML {
+		return syncResultSkipped, nil
+	}
+
+	// Validate YAML before syncing (unless force)
+	if !force {
+		var wf types.Workflow
+		if err := yaml.Unmarshal(yamlData, &wf); err != nil {
+			return "", fmt.Errorf("YAML validation failed: %w", err)
+		}
+
+		if wf.Name == "" {
+			return "", fmt.Errorf("workflow name is required")
+		}
+
+		if wf.WorkflowType == "" {
+			return "", fmt.Errorf("workflow_type is required")
+		}
+
+		// Validate against config
+		cfg, err := config.Load()
+		if err != nil {
+			return "", fmt.Errorf("failed to load config: %w", err)
+		}
+
+		if err := cfg.ValidateWorkflowType(wf.WorkflowType); err != nil {
+			return "", fmt.Errorf("invalid workflow_type: %w", err)
+		}
+	}
+
+	// Insert or update
+	if exists {
+		_, err = c.db.GetDB().Exec(`
+			UPDATE workflows
+			SET config_yaml = ?, display_name = ?, description = ?,
+			    workflow_type = ?, version = ?, updated_at = ?
+			WHERE name = ?
+		`, string(yamlData), extractDisplayName(yamlData), extractDescription(yamlData),
+			extractWorkflowType(yamlData), extractVersion(yamlData),
+			time.Now().Format(time.RFC3339), workflowName)
+	} else {
+		_, err = c.db.GetDB().Exec(`
+			INSERT INTO workflows (name, display_name, description, workflow_type, version, is_builtin, config_yaml)
+			VALUES (?, ?, ?, ?, ?, 0, ?)
+		`, workflowName, extractDisplayName(yamlData), extractDescription(yamlData),
+			extractWorkflowType(yamlData), extractVersion(yamlData), string(yamlData))
+	}
+
+	if err != nil {
+		return "", fmt.Errorf("failed to save to database: %w", err)
+	}
+
+	return syncResultSuccess, nil
+}
+
+// Helper functions to extract metadata from YAML without full parsing
+func extractDisplayName(yamlData []byte) string {
+	if match := findYAMLField(yamlData, "display_name"); match != "" {
+		return match
+	}
+	return ""
+}
+
+func extractDescription(yamlData []byte) string {
+	if match := findYAMLField(yamlData, "description"); match != "" {
+		return match
+	}
+	return ""
+}
+
+func extractWorkflowType(yamlData []byte) string {
+	if match := findYAMLField(yamlData, "workflow_type"); match != "" {
+		return match
+	}
+	return ""
+}
+
+func extractVersion(yamlData []byte) string {
+	if match := findYAMLField(yamlData, "version"); match != "" {
+		return match
+	}
+	return "1.0.0"
+}
+
+func findYAMLField(data []byte, field string) string {
+	// Simple regex-like search for field: value
+	prefix := []byte(field + ":")
+	idx := bytes.Index(data, prefix)
+	if idx == -1 {
+		return ""
+	}
+
+	// Find value after prefix
+	rest := data[idx+len(prefix):]
+	rest = bytes.TrimLeft(rest, " \t")
+
+	if len(rest) == 0 {
+		return ""
+	}
+
+	// Extract quoted string or unquoted value
+	if rest[0] == '"' {
+		end := bytes.Index(rest[1:], []byte("\""))
+		if end == -1 {
+			return ""
+		}
+		return string(rest[1 : end+1])
+	}
+
+	// Extract until newline or comment
+	end := bytes.IndexAny(rest, "\n#")
+	if end == -1 {
+		end = len(rest)
+	}
+	return strings.TrimSpace(string(rest[:end]))
 }
 
 func findNode(wf *types.Workflow, ref string) *types.WorkflowNode {
