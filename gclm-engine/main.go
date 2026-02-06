@@ -13,6 +13,15 @@ func main() {
 	// Set embedded migrations for database initialization
 	db.SetMigrationsFS(MigrationsFS())
 
+	// Check command to decide whether to show migration logs
+	// Only enable for "init" and "serve" commands for diagnostic purposes
+	if len(os.Args) > 1 {
+		cmd := os.Args[1]
+		if cmd == "init" || cmd == "serve" {
+			os.Setenv("GCLM_MIGRATION_VERBOSE", "1")
+		}
+	}
+
 	// Determine config directory
 	configDir := os.Getenv("GCLM_ENGINE_CONFIG_DIR")
 	if configDir == "" {

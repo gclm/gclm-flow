@@ -51,6 +51,7 @@ func (c *CLI) createWorkflowCommand() *cobra.Command {
 		Short: "List all workflows",
 		RunE:  c.runWorkflowList,
 	}
+	listCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// workflow export - 导出工作流
 	exportCmd := &cobra.Command{
@@ -142,11 +143,18 @@ func (c *CLI) runWorkflowUninstall(cmd *cobra.Command, args []string) error {
 }
 
 func (c *CLI) runWorkflowList(cmd *cobra.Command, args []string) error {
+	jsonOutput, _ := cmd.Flags().GetBool("json")
+
 	ctx := context.Background()
 
 	workflows, err := c.workflowSvc.ListWorkflows(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list workflows: %w", err)
+	}
+
+	if jsonOutput {
+		c.printOutput(workflows, true)
+		return nil
 	}
 
 	if len(workflows) == 0 {

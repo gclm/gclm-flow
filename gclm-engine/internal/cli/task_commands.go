@@ -28,6 +28,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 	}
 	createCmd.Flags().String("workflow-type", "", "Workflow type (feat, fix, docs, etc.)")
 	createCmd.Flags().String("pipeline", "", "Pipeline name (overrides workflow-type)")
+	createCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task get
 	getCmd := &cobra.Command{
@@ -36,6 +37,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskGet,
 	}
+	getCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task list
 	listCmd := &cobra.Command{
@@ -45,6 +47,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 	}
 	listCmd.Flags().String("status", "", "Filter by status")
 	listCmd.Flags().Int("limit", 20, "Maximum number of tasks to show")
+	listCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task current - 获取当前应该执行的阶段
 	currentCmd := &cobra.Command{
@@ -54,6 +57,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskCurrent,
 	}
+	currentCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task plan - 获取完整执行计划
 	planCmd := &cobra.Command{
@@ -63,6 +67,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskPlan,
 	}
+	planCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task update - 更新阶段状态
 	updateCmd := &cobra.Command{
@@ -74,6 +79,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 	}
 	updateCmd.Flags().String("output", "", "Phase output (for completed status)")
 	updateCmd.Flags().String("error", "", "Error message (for failed status)")
+	updateCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task complete - 完成阶段
 	completeCmd := &cobra.Command{
@@ -84,6 +90,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		RunE:  c.runTaskComplete,
 	}
 	completeCmd.Flags().String("output", "", "Phase output")
+	completeCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task fail - 标记阶段失败
 	failCmd := &cobra.Command{
@@ -94,6 +101,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		RunE:  c.runTaskFail,
 	}
 	failCmd.Flags().String("error", "", "Error message")
+	failCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task phases
 	phasesCmd := &cobra.Command{
@@ -102,6 +110,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskPhases,
 	}
+	phasesCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task events
 	eventsCmd := &cobra.Command{
@@ -111,6 +120,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		RunE:  c.runTaskEvents,
 	}
 	eventsCmd.Flags().Int("limit", 50, "Maximum number of events to show")
+	eventsCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task export - 导出状态文件
 	exportCmd := &cobra.Command{
@@ -128,6 +138,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskPause,
 	}
+	pauseCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	resumeCmd := &cobra.Command{
 		Use:   "resume <task-id>",
@@ -135,6 +146,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskResume,
 	}
+	resumeCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	cancelCmd := &cobra.Command{
 		Use:   "cancel <task-id>",
@@ -142,6 +154,7 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskCancel,
 	}
+	cancelCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	cmd.AddCommand(createCmd, getCmd, listCmd, currentCmd, planCmd, updateCmd,
 		completeCmd, failCmd, phasesCmd, eventsCmd, exportCmd,

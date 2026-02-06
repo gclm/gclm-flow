@@ -13,6 +13,32 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+const (
+	// envVerboseMigration is the environment variable that controls migration logging
+	// Set "1" to enable, "0" or unset to disable
+	// Used by init and serve commands to show diagnostic information
+	envVerboseMigration = "GCLM_MIGRATION_VERBOSE"
+)
+
+// silentLogger is a no-op logger that suppresses goose output
+type silentLogger struct{}
+
+func (l silentLogger) Printf(format string, v ...interface{}) {
+	// Suppress all log output
+}
+
+func (l silentLogger) Println(v ...interface{}) {
+	// Suppress all log output
+}
+
+func (l silentLogger) Fatalf(format string, v ...interface{}) {
+	// Suppress fatal logs
+}
+
+func (l silentLogger) Fatal(v ...interface{}) {
+	// Suppress fatal logs
+}
+
 // migrationsFS holds the embedded migrations filesystem
 // Set by SetMigrationsFS before calling New()
 var migrationsFS fs.FS
@@ -85,6 +111,13 @@ func (d *Database) init() error {
 	// Configure goose
 	if err := goose.SetDialect("sqlite3"); err != nil {
 		return fmt.Errorf("failed to set goose dialect: %w", err)
+	}
+
+	// Set logger based on environment variable
+	// GCLM_MIGRATION_VERBOSE=1 enables logs (for init/serve commands) - don't call SetLogger to use default
+	// Otherwise use silent logger to suppress output
+	if os.Getenv(envVerboseMigration) != "1" {
+		goose.SetLogger(silentLogger{})
 	}
 
 	// If embedded migrations are available, use them
