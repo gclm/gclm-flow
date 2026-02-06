@@ -34,30 +34,30 @@ func (s *TaskService) ListTasks(ctx context.Context, status *types.TaskStatus, l
 }
 
 // CreateTask 创建新任务
-// workflowType: 必需，指定工作流类型（如 "feat", "fix", "docs" 等）
+// workflow: 必需，指定工作流名称（如 "analyze", "docs", "feat", "fix"）
 // prompt: 用户任务描述
-func (s *TaskService) CreateTask(ctx context.Context, prompt string, workflowType string) (*types.Task, error) {
-	// workflowType 必需
-	if workflowType == "" {
-		return nil, fmt.Errorf("workflowType is required: %w", domain.ErrInvalidInput)
+func (s *TaskService) CreateTask(ctx context.Context, prompt string, workflow string) (*types.Task, error) {
+	// workflow 必需
+	if workflow == "" {
+		return nil, fmt.Errorf("workflow is required: %w", domain.ErrInvalidInput)
 	}
 
-	// 加载流水线配置（按名称）
-	pipeline, err := s.loader.Load(ctx, workflowType)
+	// 加载工作流配置（按名称）
+	workflowDef, err := s.loader.Load(ctx, workflow)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load pipeline '%s': %w", workflowType, err)
+		return nil, fmt.Errorf("failed to load workflow '%s': %w", workflow, err)
 	}
 
 	// 创建任务
 	now := time.Now()
 	task := &types.Task{
 		ID:           generateID("task"),
-		WorkflowID:   pipeline.Name,
+		WorkflowID:   workflowDef.Name,
 		Prompt:       prompt,
-		WorkflowType: pipeline.WorkflowType,
+		WorkflowType: workflowDef.WorkflowType,
 		Status:       types.TaskStatusCreated,
 		CurrentPhase: 0,
-		TotalPhases:  len(pipeline.Nodes),
+		TotalPhases:  len(workflowDef.Nodes),
 		CreatedAt:    now,
 		UpdatedAt:    now,
 	}
@@ -67,7 +67,7 @@ func (s *TaskService) CreateTask(ctx context.Context, prompt string, workflowTyp
 	}
 
 	// 创建阶段
-	if err := s.createPhases(ctx, task, pipeline); err != nil {
+	if err := s.createPhases(ctx, task, workflowDef); err != nil {
 		return nil, fmt.Errorf("create phases: %w", err)
 	}
 
@@ -89,10 +89,10 @@ func (s *TaskService) GetExecutionPlan(ctx context.Context, taskID string) (*dom
 		return nil, fmt.Errorf("get task: %w", err)
 	}
 
-	// 加载流水线
-	pipe, err := s.loader.Load(ctx, task.WorkflowID)
+	// 加载工作流
+	wf, err := s.loader.Load(ctx, task.WorkflowID)
 	if err != nil {
-		return nil, fmt.Errorf("load pipeline: %w", err)
+		return nil, fmt.Errorf("load workflow: %w", err)
 	}
 
 	// 获取阶段
@@ -124,7 +124,7 @@ func (s *TaskService) GetExecutionPlan(ctx context.Context, taskID string) (*dom
 		}
 
 		// 找出依赖的阶段
-		node := findNode(pipe, phase.PhaseName)
+		node := findNode(wf, phase.PhaseName)
 		if node != nil {
 			step.Dependencies = node.DependsOn
 			step.Required = node.Required
@@ -382,10 +382,10 @@ func (s *TaskService) recordEvent(ctx context.Context, taskID string, eventType 
 
 // 辅助函数
 
-func findNode(pipeline *types.Workflow, ref string) *types.WorkflowNode {
-	for i := range pipeline.Nodes {
-		if pipeline.Nodes[i].Ref == ref {
-			return &pipeline.Nodes[i]
+func findNode(workflow *types.Workflow, ref string) *types.WorkflowNode {
+	for i := range workflow.Nodes {
+		if workflow.Nodes[i].Ref == ref {
+			return &workflow.Nodes[i]
 		}
 	}
 	return nil

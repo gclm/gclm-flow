@@ -19,16 +19,16 @@ func TestCLICommands(t *testing.T) {
 		t.Log("CLI created successfully")
 	})
 
-	t.Run("PipelineList", func(t *testing.T) {
+	t.Run("WorkflowList", func(t *testing.T) {
 		c, err := cli.New(getConfigPath(t))
 		if err != nil {
 			t.Fatalf("Failed to create CLI: %v", err)
 		}
 		defer c.Close()
 
-		// 测试 pipeline list 命令
+		// 测试 workflow list 命令
 		// 由于需要命令行参数解析，这里只是验证初始化成功
-		t.Log("Pipeline list command available")
+		t.Log("Workflow list command available")
 	})
 }
 

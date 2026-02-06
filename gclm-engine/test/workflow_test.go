@@ -7,54 +7,54 @@ import (
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 )
 
-// TestWorkflowParser 测试流水线解析器
+// TestWorkflowParser 测试工作流解析器
 func TestWorkflowParser(t *testing.T) {
 	parser := workflow.NewParser(getWorkflowsPath(t))
 
-	t.Run("LoadCodeSimpleWorkflow", func(t *testing.T) {
-		p, err := parser.LoadWorkflow("code_simple")
+	t.Run("LoadFixWorkflow", func(t *testing.T) {
+		wf, err := parser.LoadWorkflow("fix")
 		if err != nil {
-			t.Fatalf("Failed to load pipeline: %v", err)
+			t.Fatalf("Failed to load workflow: %v", err)
 		}
 
-		if p.Name != "code_simple" {
-			t.Errorf("Expected name 'code_simple', got '%s'", p.Name)
+		if wf.Name != "fix" {
+			t.Errorf("Expected name 'fix', got '%s'", wf.Name)
 		}
 
-		if p.WorkflowType != "fix" {
-			t.Errorf("Expected workflow_type 'fix', got '%s'", p.WorkflowType)
+		if wf.WorkflowType != "fix" {
+			t.Errorf("Expected workflow_type 'fix', got '%s'", wf.WorkflowType)
 		}
 
-		if len(p.Nodes) == 0 {
+		if len(wf.Nodes) == 0 {
 			t.Error("Expected at least one node")
 		}
 	})
 
 	t.Run("ValidateWorkflow", func(t *testing.T) {
-		p, err := parser.LoadWorkflow("code_simple")
+		wf, err := parser.LoadWorkflow("fix")
 		if err != nil {
-			t.Fatalf("Failed to load pipeline: %v", err)
+			t.Fatalf("Failed to load workflow: %v", err)
 		}
 
 		// Validation should pass
-		if err := parser.ValidateWorkflow(p); err != nil {
+		if err := parser.ValidateWorkflow(wf); err != nil {
 			t.Errorf("Workflow validation failed: %v", err)
 		}
 	})
 
 	t.Run("CalculateExecutionOrder", func(t *testing.T) {
-		p, err := parser.LoadWorkflow("code_simple")
+		wf, err := parser.LoadWorkflow("fix")
 		if err != nil {
-			t.Fatalf("Failed to load pipeline: %v", err)
+			t.Fatalf("Failed to load workflow: %v", err)
 		}
 
-		order, err := parser.CalculateExecutionOrder(p)
+		order, err := parser.CalculateExecutionOrder(wf)
 		if err != nil {
 			t.Fatalf("Failed to calculate execution order: %v", err)
 		}
 
-		if len(order) != len(p.Nodes) {
-			t.Errorf("Expected %d nodes, got %d", len(p.Nodes), len(order))
+		if len(order) != len(wf.Nodes) {
+			t.Errorf("Expected %d nodes, got %d", len(wf.Nodes), len(order))
 		}
 
 		// Check that discovery comes before clarification
@@ -74,28 +74,28 @@ func TestWorkflowParser(t *testing.T) {
 	})
 
 	t.Run("LoadAllWorkflows", func(t *testing.T) {
-		pipelines, err := parser.LoadAllWorkflows()
+		workflows, err := parser.LoadAllWorkflows()
 		if err != nil {
-			t.Fatalf("Failed to load all pipelines: %v", err)
+			t.Fatalf("Failed to load all workflows: %v", err)
 		}
 
-		if len(pipelines) == 0 {
-			t.Error("Expected at least one pipeline")
+		if len(workflows) == 0 {
+			t.Error("Expected at least one workflow")
 		}
 
-		if _, exists := pipelines["code_simple"]; !exists {
-			t.Error("Expected code_simple pipeline to exist")
+		if _, exists := workflows["fix"]; !exists {
+			t.Error("Expected fix workflow to exist")
 		}
 	})
 
 	t.Run("ListWorkflows", func(t *testing.T) {
 		infos, err := parser.ListWorkflows()
 		if err != nil {
-			t.Fatalf("Failed to list pipelines: %v", err)
+			t.Fatalf("Failed to list workflows: %v", err)
 		}
 
 		if len(infos) == 0 {
-			t.Error("Expected at least one pipeline info")
+			t.Error("Expected at least one workflow info")
 		}
 
 		// Check that info contains required fields
@@ -110,19 +110,19 @@ func TestWorkflowParser(t *testing.T) {
 	})
 
 	t.Run("GetWorkflowByType", func(t *testing.T) {
-		p, err := parser.GetWorkflowByType("fix")
+		wf, err := parser.GetWorkflowByType("fix")
 		if err != nil {
-			t.Fatalf("Failed to get pipeline by workflow type: %v", err)
+			t.Fatalf("Failed to get workflow by type: %v", err)
 		}
 
-		if p.WorkflowType != "fix" {
-			t.Errorf("Expected workflow_type 'fix', got '%s'", p.WorkflowType)
+		if wf.WorkflowType != "fix" {
+			t.Errorf("Expected workflow_type 'fix', got '%s'", wf.WorkflowType)
 		}
 	})
 
 	t.Run("DetectCircularDependencies", func(t *testing.T) {
-		// Create a pipeline with circular dependency
-		p := &types.Workflow{
+		// Create a workflow with circular dependency
+		wf := &types.Workflow{
 			Name:         "circular",
 			DisplayName:  "Circular Workflow",
 			Version:      "0.1.0",
@@ -149,7 +149,7 @@ func TestWorkflowParser(t *testing.T) {
 			},
 		}
 
-		err := parser.CheckCircularDependencies(p)
+		err := parser.CheckCircularDependencies(wf)
 		if err == nil {
 			t.Error("Expected error for circular dependency")
 		}

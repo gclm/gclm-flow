@@ -29,7 +29,6 @@ gclm-engine/
 │   │   ├── root.go         # 根命令和初始化
 │   │   ├── task_commands.go # 任务管理命令
 │   │   ├── workflow_commands.go # 工作流命令
-│   │   ├── pipeline_commands.go # 流水线命令
 │   │   ├── init_commands.go # 初始化命令
 │   │   ├── output.go       # 输出格式化
 │   │   └── helpers.go      # 辅助函数
@@ -151,7 +150,7 @@ gclm-engine workflow sync <workflows-dir>
 gclm-engine task create "实现用户登录功能"
 
 # 指定工作流类型
-gclm-engine task create "修复 bug" --workflow-type code_simple
+gclm-engine task create "修复 bug" --workflow fix
 
 # 查看任务详情
 gclm-engine task get <task-id>
@@ -187,17 +186,17 @@ gclm-engine task resume <task-id>
 gclm-engine task cancel <task-id>
 ```
 
-### 流水线管理
+### 工作流管理
 
 ```bash
-# 列出所有流水线
-gclm-engine pipeline list
+# 列出所有工作流
+gclm-engine workflow list
 
-# 查看流水线详情
-gclm-engine pipeline get <pipeline-name>
+# 查看工作流详情
+gclm-engine workflow info <workflow-name>
 
-# 推荐流水线
-gclm-engine pipeline recommend "任务描述"
+# 同步工作流配置
+gclm-engine workflow sync
 ```
 
 ## 架构设计
@@ -381,9 +380,10 @@ CREATE TABLE workflows (
 
 ### 内置工作流
 
-- `code_simple` - Bug 修复、小修改
-- `code_complex` - 新功能、复杂开发
-- `document` - 文档编写、方案设计
+- `analyze` - 代码分析、问题诊断、性能评估、安全审计
+- `docs` - 文档编写、设计方案、需求分析
+- `feat` - 新功能开发、模块开发、跨文件重构
+- `fix` - Bug 修复、小修改、单文件变更
 
 ### 节点配置
 

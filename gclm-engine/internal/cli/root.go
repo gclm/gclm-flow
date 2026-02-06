@@ -53,7 +53,7 @@ func New(configDir string) (*CLI, error) {
 		return nil, fmt.Errorf("failed to initialize workflows: %w", err)
 	}
 
-	// Initialize pipeline parser (still needed for YAML loading operations)
+	// Initialize workflow parser (still needed for YAML loading operations)
 	parser := workflow.NewParser(workflowsDir)
 
 	// Initialize repositories
@@ -164,7 +164,6 @@ func (c *CLI) createRootCommand() *cobra.Command {
 	rootCmd.AddCommand(c.createInitCommand())
 	rootCmd.AddCommand(c.createTaskCommand())
 	rootCmd.AddCommand(c.createWorkflowCommand())
-	rootCmd.AddCommand(c.createPipelineCommand())
 	rootCmd.AddCommand(c.createServeCommand())
 	rootCmd.AddCommand(c.createVersionCommand())
 

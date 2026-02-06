@@ -22,12 +22,11 @@ func (c *CLI) createTaskCommand() *cobra.Command {
 	createCmd := &cobra.Command{
 		Use:   "create <prompt>",
 		Short: "Create a new task",
-		Long:  "Create a new task. Workflow type is auto-detected from prompt keywords.",
+		Long:  "Create a new task using the specified workflow.",
 		Args:  cobra.ExactArgs(1),
 		RunE:  c.runTaskCreate,
 	}
-	createCmd.Flags().String("workflow-type", "", "Workflow type (feat, fix, docs, etc.)")
-	createCmd.Flags().String("pipeline", "", "Pipeline name (overrides workflow-type)")
+	createCmd.Flags().String("workflow", "", "Workflow name (analyze, docs, feat, fix)")
 	createCmd.Flags().BoolP("json", "j", false, "Output in JSON format")
 
 	// task get
@@ -171,29 +170,18 @@ func (c *CLI) runTaskCreate(cmd *cobra.Command, args []string) error {
 	prompt := args[0]
 
 	// Get flags
-	workflowType, _ := cmd.Flags().GetString("workflow-type")
-	pipelineName, _ := cmd.Flags().GetString("pipeline")
+	workflow, _ := cmd.Flags().GetString("workflow")
 	jsonOutput, _ := cmd.Flags().GetBool("json")
 
 	ctx := context.Background()
 
-	// workflow-type 或 pipeline 必需指定其一
-	if workflowType == "" && pipelineName == "" {
-		return fmt.Errorf("either --workflow-type or --pipeline is required")
+	// workflow is required
+	if workflow == "" {
+		return fmt.Errorf("--workflow is required (use: analyze, docs, feat, fix)")
 	}
-
-	var task *types.Task
-	var err error
 
 	// 使用 TaskService 创建任务
-	if pipelineName != "" {
-		// 直接使用 pipeline 名称
-		task, err = c.taskSvc.CreateTask(ctx, prompt, pipelineName)
-	} else {
-		// 使用 workflow_type
-		task, err = c.taskSvc.CreateTask(ctx, prompt, workflowType)
-	}
-
+	task, err := c.taskSvc.CreateTask(ctx, prompt, workflow)
 	if err != nil {
 		c.printFriendlyError(err)
 		return err
@@ -204,7 +192,7 @@ func (c *CLI) runTaskCreate(cmd *cobra.Command, args []string) error {
 		"task_id":       task.ID,
 		"status":        task.Status,
 		"workflow_type": task.WorkflowType,
-		"pipeline":      task.WorkflowID,
+		"workflow":      task.WorkflowID,
 		"total_phases":  task.TotalPhases,
 		"current_phase": task.CurrentPhase,
 		"message":       "Task created successfully",

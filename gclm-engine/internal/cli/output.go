@@ -99,7 +99,7 @@ func (c *CLI) printFriendlyError(err error) {
 	case strings.Contains(errStr, "not found"):
 		if strings.Contains(errStr, "task") {
 			fmt.Fprintf(os.Stderr, "Error: Task not found\n")
-		} else if strings.Contains(errStr, "workflow") || strings.Contains(errStr, "pipeline") {
+		} else if strings.Contains(errStr, "workflow") {
 			fmt.Fprintf(os.Stderr, "Error: Workflow not found\n")
 		} else {
 			fmt.Fprintf(os.Stderr, "Error: %s\n", errStr)

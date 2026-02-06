@@ -99,10 +99,10 @@ func TaskNotFound(taskID string) *FriendlyError {
 	}
 }
 
-// PipelineLoadError 流水线加载失败
-func PipelineLoadError(name string, err error) *FriendlyError {
+// WorkflowLoadError 工作流加载失败
+func WorkflowLoadError(name string, err error) *FriendlyError {
 	return &FriendlyError{
-		Short:       fmt.Sprintf("failed to load pipeline '%s'", name),
+		Short:       fmt.Sprintf("failed to load workflow '%s'", name),
 		UserMessage: fmt.Sprintf("无法加载工作流配置 '%s'", name),
 		Suggestions: []string{
 			"检查 workflows/ 目录中是否存在对应的 .yaml 文件",

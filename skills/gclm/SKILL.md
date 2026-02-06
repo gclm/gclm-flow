@@ -6,7 +6,7 @@ allowed-tools: [
   "Read(*)", "Write(*)", "Edit(*)",
   "Glob(*)", "Grep(*)", "Task(*)"
 ]
-version: "4.0"
+version: "5.0"
 engine: "gclm-engine Go Engine"
 ---
 
@@ -25,10 +25,11 @@ engine: "gclm-engine Go Engine"
 - **用户可见**: 向用户展示选择的工作流和理由
 - **用户可控**: 用户可以手动调整选择
 - **状态持久化**: SQLite 数据库管理任务和阶段状态
+- **JSON 输出**: 所有命令支持 `--json` 标志输出 JSON 格式
 
 ---
 
-## 工作流类型（基于 Git 提交规范）
+## 工作流类型
 
 ### 标准类型
 
@@ -58,32 +59,42 @@ engine: "gclm-engine Go Engine"
 ### 步骤 1: 获取工作流列表
 
 ```bash
-# 获取所有可用工作流
+# 获取所有可用工作流（JSON 格式）
 ~/.gclm-flow/gclm-engine workflow list --json
 ```
 
 **返回示例**:
 ```json
-{
-  "workflows": [
-    {
-      "name": "analyze",
-      "display_name": "代码分析工作流",
-      "description": "代码分析、问题诊断、性能评估、安全审计",
-      "workflow_type": "analyze",
-      "version": "1.0",
-      "is_builtin": true
-    },
-    {
-      "name": "feat",
-      "display_name": "新功能开发工作流",
-      "description": "新功能、模块开发、跨文件变更",
-      "workflow_type": "feat",
-      "version": "1.0",
-      "is_builtin": true
-    }
-  ]
-}
+[
+  {
+    "name": "analyze",
+    "displayName": "代码分析工作流",
+    "description": "用于代码分析、问题诊断、性能评估、安全审计等纯分析任务",
+    "workflowType": "analyze",
+    "version": "1.0"
+  },
+  {
+    "name": "docs",
+    "displayName": "文档编写工作流",
+    "description": "用于编写技术文档、设计方案、需求分析等文档类任务",
+    "workflowType": "docs",
+    "version": "1.0"
+  },
+  {
+    "name": "feat",
+    "displayName": "复杂功能开发工作流",
+    "description": "用于新功能开发、模块开发、跨文件重构等复杂任务",
+    "workflowType": "feat",
+    "version": "1.0"
+  },
+  {
+    "name": "fix",
+    "displayName": "Bug修复工作流",
+    "description": "Bug修复、小修改、单文件变更的标准流程",
+    "workflowType": "fix",
+    "version": "0.1.0-poc"
+  }
+]
 ```
 
 ### 步骤 2: LLM 语义匹配
@@ -99,10 +110,10 @@ engine: "gclm-engine Go Engine"
 | 用户输入 | 关键词 | 匹配工作流 | workflow_type |
 |:---|:---|:---|:---|
 | "分析用户认证模块的安全性" | 分析、安全性 | analyze | `analyze` |
-| "修复登录按钮样式问题" | 修复、问题 | bug-fix | `fix` |
-| "添加用户认证功能" | 添加、功能 | feature | `feat` |
-| "编写 API 设计文档" | 编写、文档 | document | `docs` |
-| "重构数据访问层" | 重构 | refactor | `refactor` |
+| "修复登录按钮样式问题" | 修复、问题 | fix | `fix` |
+| "添加用户认证功能" | 添加、功能 | feat | `feat` |
+| "编写 API 设计文档" | 编写、文档 | docs | `docs` |
+| "重构数据访问层" | 重构 | feat | `feat` |
 
 ### 步骤 3: 向用户展示选择
 
@@ -115,47 +126,40 @@ engine: "gclm-engine Go Engine"
 
 选择理由:
 - 任务关键词: "分析"、"安全性"
-- 工作流描述: "代码分析、问题诊断、性能评估、安全审计"
+- 工作流描述: "用于代码分析、问题诊断、性能评估、安全审计等纯分析任务"
 - 类型匹配: analyze
-- 阶段数: 5 (轻量级)
 ```
 
 ### 步骤 4: 用户确认
 
+使用 `AskUserQuestion` 让用户选择：
+
 ```
-AskUserQuestion: "是否使用 analyze 工作流？"
+是否使用 analyze 工作流？
 
 选项:
-- "使用 analyze" (默认)
-- "手动选择工作流"
-- "取消"
+- ✅ 使用 analyze (推荐)
+- 🔄 手动选择其他工作流
+- ❌ 取消任务
 ```
 
 ### 步骤 5: 启动工作流
 
 ```bash
-# 启动选定的工作流
-~/.gclm-flow/gclm-engine workflow start "<任务描述>" --workflow <name> --json
+# 创建任务（使用 --workflow 指定工作流名称）
+~/.gclm-flow/gclm-engine task create "<任务描述>" --workflow <name> --json
 ```
 
 **返回示例**:
 ```json
 {
   "task_id": "task-xxx",
-  "workflow": "analyze",
   "workflow_type": "analyze",
-  "total_phases": 5,
-  "current_phase": {
-    "phase_id": "phase-xxx",
-    "phase_name": "discovery",
-    "display_name": "需求发现",
-    "agent": "investigator",
-    "model": "haiku",
-    "sequence": 0,
-    "required": true,
-    "timeout": 180
-  },
-  "message": "Workflow started successfully"
+  "workflow": "analyze",
+  "status": "created",
+  "current_phase": 0,
+  "total_phases": 7,
+  "message": "Task created successfully"
 }
 ```
 
@@ -195,14 +199,48 @@ AskUserQuestion: "是否使用 analyze 工作流？"
 
 ```bash
 # 查看完整执行计划
-~/.gclm-flow/gclm-engine task plan <task-id>
+~/.gclm-flow/gclm-engine task plan <task-id> --json
 
 # 查看事件日志
-~/.gclm-flow/gclm-engine task events <task-id>
+~/.gclm-flow/gclm-engine task events <task-id> --json
 
 # 列出所有任务
-~/.gclm-flow/gclm-engine task list
+~/.gclm-flow/gclm-engine task list --json
 ```
+
+---
+
+## 命令参考
+
+### workflow 命令
+
+| 命令 | 说明 |
+|:---|:---|
+| `workflow list` | 列出所有工作流 |
+| `workflow info <name>` | 显示工作流详情 |
+| `workflow validate <file>` | 验证 YAML 配置 |
+| `workflow install <file>` | 安装工作流 |
+| `workflow sync [file]` | 同步 YAML 到数据库 |
+
+### task 命令
+
+| 命令 | 说明 |
+|:---|:---|
+| `task create <prompt> --workflow <name>` | 创建任务（使用指定工作流） |
+| `task get <task-id>` | 获取任务详情 |
+| `task list` | 列出所有任务 |
+| `task current <task-id>` | 获取当前待执行阶段 |
+| `task plan <task-id>` | 获取执行计划 |
+| `task complete <task-id> <phase-id> --output <text>` | 完成阶段 |
+| `task fail <task-id> <phase-id> --error <msg>` | 标记阶段失败 |
+| `task phases <task-id>` | 显示任务阶段 |
+| `task events <task-id>` | 显示任务事件 |
+
+### 全局标志
+
+| 标志 | 说明 |
+|:---|:---|
+| `--json, -j` | 输出 JSON 格式（便于脚本解析） |
 
 ---
 
@@ -267,56 +305,25 @@ nodes:
      # ...
    ```
 
-2. **无需修改代码**:
-   - ❌ 不需要修改 Go 代码
-   - ❌ 不需要更新分类器
-   - ✅ 只需添加 YAML 文件
+2. **同步到数据库**:
+   ```bash
+   ~/.gclm-flow/gclm-engine workflow sync workflows/my_custom_workflow.yaml
+   ```
 
 3. **验证工作流**:
    ```bash
    ~/.gclm-flow/gclm-engine workflow validate workflows/my_custom_workflow.yaml
    ```
 
-### 自定义类型（可选）
-
-在 `~/.gclm-flow/gclm_engine_config.yaml` 中扩展：
-
-```yaml
-workflow_types:
-  # ... 标准类型 ...
-
-  # 自定义类型
-  my_custom_type:
-    display_name: "自定义类型"
-    description: "..."
-```
-
-然后在工作流中使用：
-```yaml
-workflow_type: "my_custom_type"
-```
-
----
-
-## 内置工作流
-
-| 名称 | workflow_type | 阶段数 | 用途 |
-|:---|:---|:---:|:---|
-| `analyze` | `analyze` | 5+1 | 代码分析、问题诊断 |
-| `docs` | `docs` | 7+1 | 文档编写、方案设计 |
-| `fix` | `fix` | 6+1 | Bug 修复、小修改 |
-| `feat` | `feat` | 9+1 | 新功能、模块开发 |
-
-> +1 = 可选的 doc_update 阶段
-
 ---
 
 ## 硬约束
 
 1. **workflow_type 必需**: 所有工作流必须声明合法的 workflow_type
-2. **Phase 0 强制**: 任何操作前先读取 llmdoc
+2. **名称一致性**: 文件名、name、workflow_type 三者保持一致
 3. **用户确认**: 必须向用户展示选择的工作流并确认
 4. **状态持久化**: 每个阶段后调用引擎更新状态
+5. **--workflow 必需**: 创建任务时必须指定工作流名称（analyze, docs, feat, fix）
 
 ---
 
