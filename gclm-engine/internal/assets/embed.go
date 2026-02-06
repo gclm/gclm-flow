@@ -38,6 +38,16 @@ func WorkflowsFS() fs.FS {
 	return sub
 }
 
+// WebFS returns the web sub-filesystem for HTTP serving
+// Returns an fs.FS compatible with io/fs interface
+func WebFS() fs.FS {
+	sub, err := fs.Sub(assetsFS, "web")
+	if err != nil {
+		return nil
+	}
+	return sub
+}
+
 // GetDefaultConfig returns the default config file content
 func GetDefaultConfig() ([]byte, error) {
 	return fs.ReadFile(assetsFS, "gclm_engine_config.yaml")

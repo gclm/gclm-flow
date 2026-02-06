@@ -5,24 +5,32 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
-	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/domain"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 )
 
 // TaskService 任务服务 - 大管家核心
 // 职责: 工作流配置和状态管理，不执行 Agent
 type TaskService struct {
-	repo   *db.Repository
-	parser *workflow.Parser
+	taskRepo domain.TaskRepository
+	loader   domain.WorkflowLoader
 }
 
 // NewTaskService 创建任务服务
-func NewTaskService(repo *db.Repository, parser *workflow.Parser) *TaskService {
+func NewTaskService(taskRepo domain.TaskRepository, loader domain.WorkflowLoader) *TaskService {
 	return &TaskService{
-		repo:   repo,
-		parser: parser,
+		taskRepo: taskRepo,
+		loader:   loader,
 	}
+}
+
+// ListTasks 列出所有任务
+func (s *TaskService) ListTasks(ctx context.Context, status *types.TaskStatus, limit int) ([]*types.Task, error) {
+	tasks, err := s.taskRepo.ListTasks(ctx, status, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list tasks: %w", err)
+	}
+	return tasks, nil
 }
 
 // CreateTask 创建新任务
@@ -31,11 +39,11 @@ func NewTaskService(repo *db.Repository, parser *workflow.Parser) *TaskService {
 func (s *TaskService) CreateTask(ctx context.Context, prompt string, workflowType string) (*types.Task, error) {
 	// workflowType 必需
 	if workflowType == "" {
-		return nil, fmt.Errorf("workflowType is required")
+		return nil, fmt.Errorf("workflowType is required: %w", domain.ErrInvalidInput)
 	}
 
 	// 加载流水线配置（按名称）
-	pipeline, err := s.parser.LoadWorkflow(workflowType)
+	pipeline, err := s.loader.Load(ctx, workflowType)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load pipeline '%s': %w", workflowType, err)
 	}
@@ -46,7 +54,7 @@ func (s *TaskService) CreateTask(ctx context.Context, prompt string, workflowTyp
 		ID:           generateID("task"),
 		WorkflowID:   pipeline.Name,
 		Prompt:       prompt,
-		WorkflowType: workflowType,
+		WorkflowType: pipeline.WorkflowType,
 		Status:       types.TaskStatusCreated,
 		CurrentPhase: 0,
 		TotalPhases:  len(pipeline.Nodes),
@@ -54,63 +62,64 @@ func (s *TaskService) CreateTask(ctx context.Context, prompt string, workflowTyp
 		UpdatedAt:    now,
 	}
 
-	if err := s.repo.CreateTask(task); err != nil {
-		return nil, err
+	if err := s.taskRepo.CreateTask(ctx, task); err != nil {
+		return nil, fmt.Errorf("create task: %w", err)
 	}
 
 	// 创建阶段
-	if err := s.createPhases(task, pipeline); err != nil {
-		return nil, err
+	if err := s.createPhases(ctx, task, pipeline); err != nil {
+		return nil, fmt.Errorf("create phases: %w", err)
 	}
 
 	// 记录事件
-	s.recordEvent(task.ID, types.EventTypeTaskCreated, "Task created")
+	s.recordEvent(ctx, task.ID, types.EventTypeTaskCreated, "Task created")
 
 	// 标记为运行中
-	s.repo.UpdateTaskStatus(task.ID, types.TaskStatusRunning)
+	if err := s.taskRepo.UpdateTaskStatus(ctx, task.ID, types.TaskStatusRunning); err != nil {
+		return nil, fmt.Errorf("update task status: %w", err)
+	}
 
 	return task, nil
 }
 
 // GetExecutionPlan 获取执行计划（供 Skills 查询）
-// 这是 setup-gclm.sh 状态文件的 Go 版本
-func (s *TaskService) GetExecutionPlan(ctx context.Context, taskID string) (*ExecutionPlan, error) {
-	task, err := s.repo.GetTask(taskID)
+func (s *TaskService) GetExecutionPlan(ctx context.Context, taskID string) (*domain.ExecutionPlan, error) {
+	task, err := s.taskRepo.GetTask(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get task: %w", err)
 	}
 
 	// 加载流水线
-	pipe, err := s.parser.LoadWorkflow(task.WorkflowID)
+	pipe, err := s.loader.Load(ctx, task.WorkflowID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load pipeline: %w", err)
+		return nil, fmt.Errorf("load pipeline: %w", err)
 	}
 
 	// 获取阶段
-	phases, err := s.repo.GetPhasesByTask(taskID)
+	phases, err := s.taskRepo.GetPhasesByTask(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get phases: %w", err)
 	}
 
 	// 构建执行计划
-	plan := &ExecutionPlan{
-		TaskID:      taskID,
-		WorkflowID:  task.WorkflowID,
-		TotalSteps:  len(phases),
+	plan := &domain.ExecutionPlan{
+		TaskID:       taskID,
+		WorkflowID:   task.WorkflowID,
+		TotalSteps:   len(phases),
 		WorkflowType: string(task.WorkflowType),
-		Steps:       make([]*ExecutionStep, 0),
+		Steps:        make([]*domain.ExecutionStep, 0),
 	}
 
 	// 按顺序组织步骤
 	for _, phase := range phases {
-		step := &ExecutionStep{
-			Sequence:    phase.Sequence,
-			PhaseID:     phase.ID,
-			PhaseName:   phase.PhaseName,
-			DisplayName: phase.DisplayName,
-			Agent:       phase.AgentName,
-			Model:       phase.ModelName,
-			Status:      phase.Status,
+		step := &domain.ExecutionStep{
+			Sequence:     phase.Sequence,
+			PhaseID:      phase.ID,
+			PhaseName:    phase.PhaseName,
+			DisplayName:  phase.DisplayName,
+			Agent:        phase.AgentName,
+			Model:        phase.ModelName,
+			Status:       phase.Status,
 			Dependencies: make([]string, 0),
 		}
 
@@ -130,16 +139,16 @@ func (s *TaskService) GetExecutionPlan(ctx context.Context, taskID string) (*Exe
 
 // GetCurrentPhase 获取当前应该执行的阶段（供 Skills 查询）
 func (s *TaskService) GetCurrentPhase(ctx context.Context, taskID string) (*types.TaskPhase, error) {
-	phases, err := s.repo.GetPhasesByTask(taskID)
+	phases, err := s.taskRepo.GetPhasesByTask(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get phases: %w", err)
 	}
 
 	// 找到下一个待执行的阶段
 	for _, phase := range phases {
 		if phase.Status == types.PhaseStatusPending {
 			// 检查依赖是否满足
-			if s.areDependenciesSatisfied(phase, phases) {
+			if s.areDependenciesSatisfied(ctx, phase, phases) {
 				return phase, nil
 			}
 		}
@@ -149,62 +158,77 @@ func (s *TaskService) GetCurrentPhase(ctx context.Context, taskID string) (*type
 }
 
 // ReportPhaseOutput Skills 完成阶段后报告输出
-func (s *TaskService) ReportPhaseOutput(ctx context.Context, taskID, phaseID string, output string) error {
+func (s *TaskService) ReportPhaseOutput(ctx context.Context, taskID, phaseID, output string) error {
 	// 更新阶段输出
-	if err := s.repo.UpdatePhaseOutput(phaseID, output); err != nil {
-		return err
+	if err := s.taskRepo.UpdatePhaseOutput(ctx, phaseID, output); err != nil {
+		return fmt.Errorf("update phase output: %w", err)
 	}
 
 	// 更新阶段状态为完成
-	if err := s.repo.UpdatePhaseStatus(phaseID, types.PhaseStatusCompleted); err != nil {
-		return err
+	if err := s.taskRepo.UpdatePhaseStatus(ctx, phaseID, types.PhaseStatusCompleted); err != nil {
+		return fmt.Errorf("update phase status: %w", err)
 	}
 
 	// 更新任务进度
-	task, err := s.repo.GetTask(taskID)
+	task, err := s.taskRepo.GetTask(ctx, taskID)
 	if err != nil {
-		return err
+		return fmt.Errorf("get task: %w", err)
 	}
 
-	phases, err := s.repo.GetPhasesByTask(taskID)
+	phases, err := s.taskRepo.GetPhasesByTask(ctx, taskID)
 	if err != nil {
-		return err
+		return fmt.Errorf("get phases: %w", err)
 	}
 
 	completedCount := 0
 	for _, p := range phases {
 		if p.Status == types.PhaseStatusCompleted {
 			completedCount++
-		}
 
-		// 更新当前阶段索引
-		if p.Status == types.PhaseStatusCompleted && p.Sequence+1 > task.CurrentPhase {
-			s.repo.UpdateTaskProgress(taskID, p.Sequence+1)
+			// 更新当前阶段索引
+			if p.Sequence+1 > task.CurrentPhase {
+				if err := s.taskRepo.UpdateTaskProgress(ctx, taskID, p.Sequence+1); err != nil {
+					return fmt.Errorf("update task progress: %w", err)
+				}
+			}
 		}
 	}
 
 	// 检查是否全部完成
 	if completedCount >= task.TotalPhases {
-		s.repo.CompleteTask(taskID, "All phases completed successfully")
+		if err := s.taskRepo.CompleteTask(ctx, taskID, "All phases completed successfully"); err != nil {
+			return fmt.Errorf("complete task: %w", err)
+		}
 	}
 
 	// 记录事件
-	s.recordEvent(taskID, types.EventTypePhaseCompleted, fmt.Sprintf("Phase %s completed", phaseID))
+	s.recordEvent(ctx, taskID, types.EventTypePhaseCompleted, fmt.Sprintf("Phase %s completed", phaseID))
 
 	return nil
 }
 
 // ReportPhaseError Skills 报告阶段错误
-func (s *TaskService) ReportPhaseError(ctx context.Context, taskID, phaseID string, errMsg string) error {
+func (s *TaskService) ReportPhaseError(ctx context.Context, taskID, phaseID, errMsg string) error {
 	// 更新阶段输出
-	s.repo.UpdatePhaseOutput(phaseID, fmt.Sprintf("Error: %s", errMsg))
+	if err := s.taskRepo.UpdatePhaseOutput(ctx, phaseID, fmt.Sprintf("Error: %s", errMsg)); err != nil {
+		return fmt.Errorf("update phase output: %w", err)
+	}
 
 	// 更新阶段状态为失败
-	s.repo.UpdatePhaseStatus(phaseID, types.PhaseStatusFailed)
+	if err := s.taskRepo.UpdatePhaseStatus(ctx, phaseID, types.PhaseStatusFailed); err != nil {
+		return fmt.Errorf("update phase status: %w", err)
+	}
 
 	// 检查是否为必需阶段
-	task, _ := s.repo.GetTask(taskID)
-	phases, _ := s.repo.GetPhasesByTask(taskID)
+	task, err := s.taskRepo.GetTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("get task: %w", err)
+	}
+
+	phases, err := s.taskRepo.GetPhasesByTask(ctx, taskID)
+	if err != nil {
+		return fmt.Errorf("get phases: %w", err)
+	}
 
 	var currentPhase *types.TaskPhase
 	for _, p := range phases {
@@ -215,13 +239,18 @@ func (s *TaskService) ReportPhaseError(ctx context.Context, taskID, phaseID stri
 	}
 
 	if currentPhase != nil {
-		pipe, _ := s.parser.LoadWorkflow(task.WorkflowID)
-		node := findNode(pipe, currentPhase.PhaseName)
+		pipe, err := s.loader.Load(ctx, task.WorkflowID)
+		if err != nil {
+			return fmt.Errorf("load workflow: %w", err)
+		}
 
+		node := findNode(pipe, currentPhase.PhaseName)
 		if node != nil && node.Required {
 			// 必需阶段失败，任务失败
-			s.repo.FailTask(taskID, fmt.Sprintf("Required phase %s failed: %s", currentPhase.PhaseName, errMsg))
-			return fmt.Errorf("required phase failed")
+			if err := s.taskRepo.FailTask(ctx, taskID, fmt.Sprintf("Required phase %s failed: %s", currentPhase.PhaseName, errMsg)); err != nil {
+				return fmt.Errorf("fail task: %w", err)
+			}
+			return fmt.Errorf("required phase failed: %w", domain.ErrRequiredPhaseFailed)
 		}
 		// 非必需阶段失败，继续
 	}
@@ -231,47 +260,47 @@ func (s *TaskService) ReportPhaseError(ctx context.Context, taskID, phaseID stri
 
 // PauseTask 暂停任务
 func (s *TaskService) PauseTask(ctx context.Context, taskID string) error {
-	return s.repo.UpdateTaskStatus(taskID, types.TaskStatusPaused)
+	return s.taskRepo.UpdateTaskStatus(ctx, taskID, types.TaskStatusPaused)
 }
 
 // ResumeTask 恢复任务
 func (s *TaskService) ResumeTask(ctx context.Context, taskID string) error {
-	return s.repo.UpdateTaskStatus(taskID, types.TaskStatusRunning)
+	return s.taskRepo.UpdateTaskStatus(ctx, taskID, types.TaskStatusRunning)
 }
 
 // CancelTask 取消任务
 func (s *TaskService) CancelTask(ctx context.Context, taskID string) error {
-	return s.repo.UpdateTaskStatus(taskID, types.TaskStatusCancelled)
+	return s.taskRepo.UpdateTaskStatus(ctx, taskID, types.TaskStatusCancelled)
 }
 
 // GetTaskStatus 获取任务状态（替代 setup-gclm.sh 状态文件读取）
-func (s *TaskService) GetTaskStatus(ctx context.Context, taskID string) (*TaskStatusResponse, error) {
-	task, err := s.repo.GetTask(taskID)
+func (s *TaskService) GetTaskStatus(ctx context.Context, taskID string) (*domain.TaskStatusResponse, error) {
+	task, err := s.taskRepo.GetTask(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get task: %w", err)
 	}
 
-	phases, err := s.repo.GetPhasesByTask(taskID)
+	phases, err := s.taskRepo.GetPhasesByTask(ctx, taskID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("get phases: %w", err)
 	}
 
-	response := &TaskStatusResponse{
+	response := &domain.TaskStatusResponse{
 		TaskID:       task.ID,
 		Status:       task.Status,
 		CurrentPhase: task.CurrentPhase,
 		TotalPhases:  task.TotalPhases,
 		WorkflowType: string(task.WorkflowType),
-		Phases:       make([]*PhaseStatus, 0),
+		Phases:       make([]*domain.PhaseStatus, 0),
 	}
 
 	for _, phase := range phases {
-		response.Phases = append(response.Phases, &PhaseStatus{
+		response.Phases = append(response.Phases, &domain.PhaseStatus{
 			PhaseName:   phase.PhaseName,
 			DisplayName: phase.DisplayName,
 			Status:      phase.Status,
-			Agent:       phase.AgentName,
-			Model:       phase.ModelName,
+			AgentName:   phase.AgentName,
+			ModelName:   phase.ModelName,
 			Sequence:    phase.Sequence,
 		})
 	}
@@ -281,7 +310,7 @@ func (s *TaskService) GetTaskStatus(ctx context.Context, taskID string) (*TaskSt
 
 // 内部方法
 
-func (s *TaskService) createPhases(task *types.Task, pipe *types.Workflow) error {
+func (s *TaskService) createPhases(ctx context.Context, task *types.Task, pipe *types.Workflow) error {
 	now := time.Now()
 
 	for i, node := range pipe.Nodes {
@@ -298,17 +327,24 @@ func (s *TaskService) createPhases(task *types.Task, pipe *types.Workflow) error
 			UpdatedAt:   now,
 		}
 
-		if err := s.repo.CreatePhase(phase); err != nil {
-			return err
+		if err := s.taskRepo.CreatePhase(ctx, phase); err != nil {
+			return fmt.Errorf("create phase: %w", err)
 		}
 	}
 
 	return nil
 }
 
-func (s *TaskService) areDependenciesSatisfied(phase *types.TaskPhase, allPhases []*types.TaskPhase) bool {
-	task, _ := s.repo.GetTask(phase.TaskID)
-	pipe, _ := s.parser.LoadWorkflow(task.WorkflowID)
+func (s *TaskService) areDependenciesSatisfied(ctx context.Context, phase *types.TaskPhase, allPhases []*types.TaskPhase) bool {
+	task, err := s.taskRepo.GetTask(ctx, phase.TaskID)
+	if err != nil {
+		return false
+	}
+
+	pipe, err := s.loader.Load(ctx, task.WorkflowID)
+	if err != nil {
+		return false
+	}
 
 	node := findNode(pipe, phase.PhaseName)
 	if node == nil || len(node.DependsOn) == 0 {
@@ -332,7 +368,7 @@ func (s *TaskService) areDependenciesSatisfied(phase *types.TaskPhase, allPhases
 	return true
 }
 
-func (s *TaskService) recordEvent(taskID string, eventType types.EventType, data string) {
+func (s *TaskService) recordEvent(ctx context.Context, taskID string, eventType types.EventType, data string) {
 	event := &types.Event{
 		ID:         generateID("event"),
 		TaskID:     taskID,
@@ -341,7 +377,7 @@ func (s *TaskService) recordEvent(taskID string, eventType types.EventType, data
 		Data:       data,
 		OccurredAt: time.Now(),
 	}
-	s.repo.CreateEvent(event)
+	s.taskRepo.CreateEvent(ctx, event)
 }
 
 // 辅助函数
@@ -357,47 +393,4 @@ func findNode(pipeline *types.Workflow, ref string) *types.WorkflowNode {
 
 func generateID(prefix string) string {
 	return fmt.Sprintf("%s-%d", prefix, time.Now().UnixNano())
-}
-
-// ExecutionPlan 执行计划（替代 setup-gclm.sh 的状态文件）
-type ExecutionPlan struct {
-	TaskID       string
-	WorkflowID   string
-	WorkflowType string
-	TotalSteps   int
-	Steps        []*ExecutionStep
-}
-
-// ExecutionStep 执行步骤
-type ExecutionStep struct {
-	Sequence     int
-	PhaseID      string
-	PhaseName    string
-	DisplayName  string
-	Agent        string
-	Model        string
-	Status       types.PhaseStatus
-	Dependencies []string
-	Required     bool
-	Timeout      int
-}
-
-// TaskStatusResponse 任务状态响应
-type TaskStatusResponse struct {
-	TaskID       string
-	Status       types.TaskStatus
-	CurrentPhase int
-	TotalPhases  int
-	WorkflowType string
-	Phases       []*PhaseStatus
-}
-
-// PhaseStatus 阶段状态
-type PhaseStatus struct {
-	PhaseName   string
-	DisplayName string
-	Status      types.PhaseStatus
-	Agent       string
-	Model       string
-	Sequence    int
 }

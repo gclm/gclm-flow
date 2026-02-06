@@ -7,3 +7,5 @@ ClaudeNotifier.app/
 /scripts/
 /docs/
 /gclm-engine/build/
+/gclm-engine/coverage.out
+/gclm-engine/gclm-engine

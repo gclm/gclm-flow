@@ -1,4 +1,4 @@
-.PHONY: all build test clean install uninstall help
+.PHONY: all build test clean install uninstall start stop restart status logs run help
 
 # 变量定义
 BINARY_NAME=gclm-engine
@@ -34,17 +34,28 @@ clean:
 	@rm -rf $(BUILD_DIR)
 	@echo "Clean complete"
 
-## install: 安装 gclm-engine 到 ~/.gclm-flow
-## Note: 配置文件和工作流会在首次运行时自动从二进制中导出
+## install: 安装 gclm-engine 到 ~/.gclm-flow (配置和工作流首次运行时自动导出)
 install: build
 	@echo "Installing $(BINARY_NAME) to $(INSTALL_DIR)..."
 	@mkdir -p $(INSTALL_DIR)
 	@cp $(BUILD_DIR)/$(BINARY_NAME) $(INSTALL_DIR)/
 	@chmod +x $(INSTALL_DIR)/$(BINARY_NAME)
 	@echo "Installation complete!"
-	@echo "  Binary: $(INSTALL_DIR)/$(BINARY_NAME)"
 	@echo ""
-	@echo "Add to PATH:"
+	@echo "Binary installed to: $(INSTALL_DIR)/$(BINARY_NAME)"
+	@echo ""
+	@echo "Quick start:"
+	@echo "  make start           # Start daemon in background"
+	@echo "  make stop            # Stop daemon"
+	@echo "  make status          # Check status"
+	@echo "  make logs            # View logs"
+	@echo ""
+	@echo "Or use directly:"
+	@echo "  $(BINARY_NAME) serve         # Start in foreground"
+	@echo "  $(BINARY_NAME) serve -d      # Start in background (daemon)"
+	@echo "  $(BINARY_NAME) serve --stop  # Stop background server"
+	@echo ""
+	@echo "Add to PATH (optional, for convenience):"
 	@echo "  export PATH=\"$(INSTALL_DIR):\$$PATH\""
 	@echo ""
 	@echo "First run will auto-initialize config and workflows."
@@ -71,10 +82,56 @@ purge:
 	@rm -rf $(INSTALL_DIR)
 	@echo "Purge complete."
 
-## run: 快速运行
-run: dev
-	@echo "Running $(BINARY_NAME)..."
-	@$(INSTALL_DIR)/$(BINARY_NAME)
+## run: 快速运行（前台模式）
+run: build
+	@echo "Running $(BINARY_NAME) in foreground..."
+	@$(BUILD_DIR)/$(BINARY_NAME) serve
+
+## start: 启动服务（后台守护进程模式）
+start:
+	@echo "Starting $(BINARY_NAME) in daemon mode..."
+	@if [ -f "$(INSTALL_DIR)/$(BINARY_NAME)" ]; then \
+		$(INSTALL_DIR)/$(BINARY_NAME) serve -d; \
+	else \
+		echo "Error: $(BINARY_NAME) not installed. Run 'make install' first."; \
+		exit 1; \
+	fi
+
+## stop: 停止后台服务
+stop:
+	@echo "Stopping $(BINARY_NAME)..."
+	@if [ -f "$(INSTALL_DIR)/$(BINARY_NAME)" ]; then \
+		$(INSTALL_DIR)/$(BINARY_NAME) serve --stop; \
+	else \
+		echo "Error: $(BINARY_NAME) not installed."; \
+		exit 1; \
+	fi
+
+## restart: 重启服务
+restart: install stop start
+
+## status: 查看服务状态
+status:
+	@if [ -f "$(INSTALL_DIR)/gclm-engine.pid" ]; then \
+		pid=$$(cat $(INSTALL_DIR)/gclm-engine.pid); \
+		if ps -p $$pid > /dev/null 2>&1; then \
+			echo "$(BINARY_NAME) is running (PID: $$pid)"; \
+			echo "URL: http://localhost:9988"; \
+		else \
+			echo "$(BINARY_NAME) is not running (stale PID file)"; \
+			rm -f $(INSTALL_DIR)/gclm-engine.pid; \
+		fi \
+	else \
+		echo "$(BINARY_NAME) is not running"; \
+	fi
+
+## logs: 查看服务日志
+logs:
+	@if [ -f "$(INSTALL_DIR)/gclm-engine.log" ]; then \
+		tail -f $(INSTALL_DIR)/gclm-engine.log; \
+	else \
+		echo "No log file found at $(INSTALL_DIR)/gclm-engine.log"; \
+	fi
 
 ## package: 打包为发布文件（用于 GitHub Releases）
 package: build

@@ -9,6 +9,7 @@ gclm-engine 是 gclm-flow 的核心引擎，负责：
 - **任务状态管理** - SQLite 持久化，支持暂停/恢复
 - **阶段调度** - 依赖解析、拓扑排序、并行执行
 - **CLI 接口** - JSON 输出，与 Claude Code skills 集成
+- **Web API** - RESTful API + WebSocket 实时推送
 
 ## 项目结构
 
@@ -18,18 +19,51 @@ gclm-engine/
 ├── go.mod                  # Go 模块定义
 ├── Makefile                # 构建脚本
 ├── internal/
-│   ├── cli/               # CLI 命令实现 (cobra)
-│   ├── db/                # 数据库层 (SQLite)
-│   │   ├── database.go    # 数据库初始化
-│   │   └── workflow.go    # 工作流存储
-│   ├── pipeline/          # 流水线解析器
-│   │   └── parser.go      # YAML 解析、依赖图
-│   └── service/           # 任务服务
-│       └── task.go        # 核心工作流逻辑
-├── pkg/types/             # 共享类型定义
-│   ├── types.go          # Task, Phase, Event
-│   └── pipeline.go       # Pipeline, PipelineNode
-├── workflows/             # 内置工作流 YAML (已移至项目根目录)
+│   ├── api/                # Web API 层
+│   │   ├── server.go       # HTTP 服务器 (Gin)
+│   │   ├── handlers.go     # REST handlers
+│   │   ├── utils.go        # 工具函数
+│   │   └── websocket/
+│   │       └── hub.go       # WebSocket Hub
+│   ├── cli/                # CLI 命令 (cobra)
+│   │   ├── root.go         # 根命令和初始化
+│   │   ├── task_commands.go # 任务管理命令
+│   │   ├── workflow_commands.go # 工作流命令
+│   │   ├── pipeline_commands.go # 流水线命令
+│   │   ├── init_commands.go # 初始化命令
+│   │   ├── output.go       # 输出格式化
+│   │   └── helpers.go      # 辅助函数
+│   ├── db/                 # 数据库层
+│   │   ├── database.go     # 数据库初始化
+│   │   ├── repository.go   # 数据访问实现
+│   │   └── workflow.go     # 工作流存储
+│   ├── domain/             # 领域接口层
+│   │   ├── errors.go       # 错误类型定义
+│   │   ├── loader.go       # WorkflowLoader 接口
+│   │   ├── repository.go   # 仓库接口
+│   │   └── service.go      # 服务接口
+│   ├── repository/         # 适配器层
+│   │   ├── task_repository.go    # TaskRepository 适配器
+│   │   ├── workflow_repository.go # WorkflowRepository 适配器
+│   │   └── workflow_loader.go     # WorkflowLoader 适配器
+│   ├── service/            # 服务层
+│   │   ├── task.go         # 任务服务实现
+│   │   └── workflow.go     # 工作流服务实现
+│   ├── workflow/           # 工作流解析
+│   │   └── parser.go       # YAML 解析、依赖图
+│   ├── logger/             # 统一日志 (zerolog)
+│   ├── assets/             # 嵌入资源
+│   ├── config/             # 配置管理
+│   └── errors/             # 错误处理
+├── pkg/types/              # 共享类型定义
+│   ├── types.go           # Task, Phase, Event
+│   └── workflow.go        # Workflow, WorkflowNode
+├── web/                    # Web 前端
+│   ├── index.html         # 主页面
+│   └── static/
+│       ├── css/style.css  # 样式
+│       └── js/app.js      # 前端逻辑
+├── workflows/             # 工作流 YAML (运行时)
 └── test/                  # 测试文件
 ```
 
@@ -39,29 +73,48 @@ gclm-engine/
 
 ```bash
 cd gclm-engine
-make build
-# 或
-go build -o gclm-engine
+go build -o gclm-engine .
 ```
 
-### 安装
+### 初始化
+
+首次运行会自动初始化配置：
 
 ```bash
-# 安装到 ~/.gclm-flow/
-make install
-
-# 或使用项目根目录的安装脚本
-cd .. && bash install.sh
+./gclm-engine version
+# 自动创建 ~/.gclm-flow/ 目录并导出内置工作流
 ```
 
-### 运行
+或手动初始化：
 
 ```bash
-# 添加到 PATH
-export PATH="$PATH:$HOME/.gclm-flow"
+./gclm-engine init
+```
 
-# 查看版本
-gclm-engine version
+### CLI 使用
+
+```bash
+# 创建任务
+./gclm-engine task create "实现用户登录功能"
+
+# 查看任务详情
+./gclm-engine task get <task-id>
+
+# 列出所有任务
+./gclm-engine task list
+```
+
+### Web API 使用
+
+```bash
+# 启动 HTTP 服务器
+./gclm-engine serve
+
+# API 端点:
+# - GET  /api/tasks - 列出任务
+# - POST /api/tasks - 创建任务
+# - GET  /api/tasks/:id - 获取任务详情
+# - WS   /ws/tasks/:id - WebSocket 实时更新
 ```
 
 ## 命令参考
@@ -81,8 +134,14 @@ gclm-engine workflow validate <yaml-file>
 # 安装自定义工作流
 gclm-engine workflow install <yaml-file>
 
+# 卸载工作流
+gclm-engine workflow uninstall <workflow-name>
+
 # 导出工作流
 gclm-engine workflow export <workflow-name>
+
+# 同步工作流
+gclm-engine workflow sync <workflows-dir>
 ```
 
 ### 任务管理
@@ -92,10 +151,7 @@ gclm-engine workflow export <workflow-name>
 gclm-engine task create "实现用户登录功能"
 
 # 指定工作流类型
-gclm-engine task create "修复 bug" --workflow-type CODE_SIMPLE
-
-# 一键开始工作流
-gclm-engine workflow start "添加支付模块"
+gclm-engine task create "修复 bug" --workflow-type code_simple
 
 # 查看任务详情
 gclm-engine task get <task-id>
@@ -131,6 +187,120 @@ gclm-engine task resume <task-id>
 gclm-engine task cancel <task-id>
 ```
 
+### 流水线管理
+
+```bash
+# 列出所有流水线
+gclm-engine pipeline list
+
+# 查看流水线详情
+gclm-engine pipeline get <pipeline-name>
+
+# 推荐流水线
+gclm-engine pipeline recommend "任务描述"
+```
+
+## 架构设计
+
+### 分层架构
+
+```
+┌─────────────────────────────────────────────┐
+│              CLI / Web API                   │
+└─────────────────────────────────────────────┘
+                      │
+┌─────────────────────────────────────────────┐
+│             Service Layer                    │
+│  (TaskService, WorkflowService)             │
+└─────────────────────────────────────────────┘
+                      │
+┌─────────────────────────────────────────────┐
+│          Repository Adapters                 │
+│  (TaskRepository, WorkflowLoader)           │
+└─────────────────────────────────────────────┘
+                      │
+┌─────────────────────────────────────────────┐
+│            Database Layer                    │
+│         (SQLite + goose migrations)          │
+└─────────────────────────────────────────────┘
+```
+
+### 依赖注入
+
+- `domain` 包定义接口
+- `repository` 包提供适配器实现
+- `service` 包依赖接口而非具体实现
+- 支持测试时使用 mock 实现
+
+## Web API
+
+### REST 端点
+
+| 端点 | 方法 | 描述 |
+|:---|:---|:---|
+| `/api/tasks` | GET | 列出任务 |
+| `/api/tasks` | POST | 创建任务 |
+| `/api/tasks/:id` | GET | 获取任务详情 |
+| `/api/tasks/:id/phases` | GET | 获取任务阶段 |
+| `/api/tasks/:id/events` | GET | 获取任务事件 |
+| `/api/tasks/:id/pause` | POST | 暂停任务 |
+| `/api/tasks/:id/resume` | POST | 恢复任务 |
+| `/api/tasks/:id/cancel` | POST | 取消任务 |
+| `/api/phases/:id/complete` | POST | 完成阶段 |
+| `/api/phases/:id/fail` | POST | 标记阶段失败 |
+| `/api/workflows` | GET | 列出工作流 |
+| `/api/workflows/:name` | GET | 获取工作流详情 |
+
+### WebSocket 事件
+
+| 事件类型 | 描述 |
+|:---|:---|
+| `task_created` | 任务创建 |
+| `task_started` | 任务开始 |
+| `task_completed` | 任务完成 |
+| `task_failed` | 任务失败 |
+| `task_paused` | 任务暂停 |
+| `task_resumed` | 任务恢复 |
+| `task_cancelled` | 任务取消 |
+| `phase_started` | 阶段开始 |
+| `phase_completed` | 阶段完成 |
+| `phase_failed` | 阶段失败 |
+
+## 测试
+
+### 运行测试
+
+```bash
+# 运行所有测试
+go test ./...
+
+# 运行特定包测试
+go test ./internal/repository -v
+go test ./internal/service -v
+
+# 测试覆盖率
+go test ./... -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+### 当前覆盖率
+
+- `internal/logger`: 85.0%
+- `test`: 58.8%
+- `internal/repository`: 52.3%
+
+### 基准测试
+
+```bash
+# 运行基准测试
+go test ./internal/workflow/... -bench=. -benchmem
+go test ./internal/repository/... -bench=. -benchmem
+
+# CPU profiling
+go test ./internal/... -bench=. -cpuprofile=cpu.prof
+go tool pprof cpu.prof
+```
+
 ## 数据库
 
 ### 位置
@@ -145,7 +315,7 @@ gclm-engine task cancel <task-id>
 -- 任务表
 CREATE TABLE tasks (
     id TEXT PRIMARY KEY,
-    pipeline_id TEXT,
+    workflow_id TEXT,
     prompt TEXT,
     workflow_type TEXT,
     status TEXT,
@@ -209,67 +379,11 @@ CREATE TABLE workflows (
 
 ## 工作流配置
 
-### YAML 格式
+### 内置工作流
 
-工作流通过 YAML 文件定义，位于 `~/.gclm-flow/workflows/`：
-
-```yaml
-name: code_simple
-display_name: "CODE_SIMPLE 工作流"
-description: "Bug 修复、小修改的标准流程"
-version: "0.2.0"
-author: "gclm-flow"
-
-workflow_type: "CODE_SIMPLE"
-
-nodes:
-  - ref: discovery
-    display_name: "Discovery / 需求发现"
-    agent: investigator
-    model: haiku
-    timeout: 60
-    required: true
-
-  - ref: clarification
-    display_name: "Clarification / 澄清确认"
-    agent: investigator
-    model: haiku
-    depends_on: [discovery]
-    timeout: 60
-    required: true
-
-  - ref: tdd_red
-    display_name: "TDD Red / 编写测试"
-    agent: tdd-guide
-    model: sonnet
-    depends_on: [clarification]
-    timeout: 120
-    required: true
-
-  - ref: tdd_green
-    display_name: "TDD Green / 编写实现"
-    agent: worker
-    model: sonnet
-    depends_on: [tdd_red]
-    timeout: 180
-    required: true
-
-  - ref: code_reviewer
-    display_name: "Code Reviewer / 代码审查"
-    agent: code-reviewer
-    model: sonnet
-    depends_on: [tdd_green]
-    timeout: 90
-    required: true
-
-  - ref: summary
-    display_name: "Summary / 完成总结"
-    agent: investigator
-    model: haiku
-    depends_on: [code_reviewer]
-    timeout: 60
-    required: true
-```
+- `code_simple` - Bug 修复、小修改
+- `code_complex` - 新功能、复杂开发
+- `document` - 文档编写、方案设计
 
 ### 节点配置
 
@@ -284,70 +398,14 @@ nodes:
 | `depends_on` | []string | ❌ | 依赖节点列表 |
 | `parallel_group` | string | ❌ | 并行组标识 |
 
-## 工作流类型检测
-
-引擎使用关键词评分系统自动检测工作流类型：
-
-| 关键词类型 | 示例 | 分数 |
-|:---|:---|:---:|
-| 文档短语 | "编写文档", "方案设计", "架构设计" | +5 |
-| 文档单词 | "文档", "方案", "需求", "分析" | +3 |
-| Bug 短语 | "修复bug", "fix bug" | -5 |
-| Bug 单词 | "bug", "修复", "debug" | -3 |
-| 功能单词 | "功能", "模块", "开发" | -1 |
-
-**阈值**：score ≥ 3 → DOCUMENT, score ≤ -3 → CODE_SIMPLE, 其他 → CODE_COMPLEX
-
-## 开发
-
-### 测试
-
-```bash
-# 运行所有测试
-make test
-
-# 运行特定包测试
-go test ./internal/cli -v
-go test ./internal/service -v
-
-# 测试覆盖率
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out
-```
-
-### 开发模式
-
-```bash
-# 快速构建到 ~/.gclm-flow/
-make dev
-
-# 或直接构建
-go build -o ~/.gclm-flow/gclm-engine .
-```
-
-## 状态说明
-
-### 任务状态
-
-- `created` - 已创建
-- `running` - 运行中
-- `paused` - 已暂停
-- `completed` - 已完成
-- `failed` - 已失败
-- `cancelled` - 已取消
-
-### 阶段状态
-
-- `pending` - 待执行
-- `running` - 执行中
-- `completed` - 已完成
-- `failed` - 失败
-- `skipped` - 已跳过
-
 ## 依赖
 
 - `github.com/spf13/cobra` - CLI 框架
-- `github.com/mattn/go-sqlite3` - SQLite 驱动 (需要 CGO)
+- `github.com/gin-gonic/gin` - HTTP 框架
+- `github.com/gorilla/websocket` - WebSocket
+- `github.com/mattn/go-sqlite3` - SQLite 驱动
+- `github.com/pressly/goose/v3` - 数据库迁移
+- `github.com/rs/zerolog` - 结构化日志
 - `gopkg.in/yaml.v3` - YAML 解析
 
 ## License

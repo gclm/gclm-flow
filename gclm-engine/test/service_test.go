@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/gclm/gclm-flow/gclm-engine/internal/db"
-	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/repository"
 	"github.com/gclm/gclm-flow/gclm-engine/internal/service"
+	"github.com/gclm/gclm-flow/gclm-engine/internal/workflow"
 	"github.com/gclm/gclm-flow/gclm-engine/pkg/types"
 )
 
@@ -17,8 +18,13 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := workflow.NewParser(getConfigPath(t))
-		taskService := service.NewTaskService(repo, parser)
+		parser := workflow.NewParser(getWorkflowsPath(t))
+
+		// 使用 domain 接口适配器
+		taskRepo := repository.NewTaskRepository(repo)
+		workflowLoader := repository.NewWorkflowLoader(parser)
+
+		taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 		ctx := context.Background()
 
@@ -33,7 +39,7 @@ func TestTaskService(t *testing.T) {
 		}
 
 		// 验证阶段已创建
-		phases, err := repo.GetPhasesByTask(task.ID)
+		phases, err := taskRepo.GetPhasesByTask(ctx, task.ID)
 		if err != nil {
 			t.Fatalf("Failed to get phases: %v", err)
 		}
@@ -48,8 +54,12 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := workflow.NewParser(getConfigPath(t))
-		taskService := service.NewTaskService(repo, parser)
+		parser := workflow.NewParser(getWorkflowsPath(t))
+
+		taskRepo := repository.NewTaskRepository(repo)
+		workflowLoader := repository.NewWorkflowLoader(parser)
+
+		taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 		ctx := context.Background()
 
@@ -88,8 +98,12 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := workflow.NewParser(getConfigPath(t))
-		taskService := service.NewTaskService(repo, parser)
+		parser := workflow.NewParser(getWorkflowsPath(t))
+
+		taskRepo := repository.NewTaskRepository(repo)
+		workflowLoader := repository.NewWorkflowLoader(parser)
+
+		taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 		ctx := context.Background()
 
@@ -112,8 +126,12 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := workflow.NewParser(getConfigPath(t))
-		taskService := service.NewTaskService(repo, parser)
+		parser := workflow.NewParser(getWorkflowsPath(t))
+
+		taskRepo := repository.NewTaskRepository(repo)
+		workflowLoader := repository.NewWorkflowLoader(parser)
+
+		taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 		ctx := context.Background()
 
@@ -129,7 +147,7 @@ func TestTaskService(t *testing.T) {
 		}
 
 		// 验证阶段状态
-		updatedPhase, _ := repo.GetPhase(phase.ID)
+		updatedPhase, _ := taskRepo.GetPhase(ctx, phase.ID)
 		if updatedPhase.Status != types.PhaseStatusCompleted {
 			t.Errorf("Expected status completed, got %s", updatedPhase.Status)
 		}
@@ -144,8 +162,12 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := workflow.NewParser(getConfigPath(t))
-		taskService := service.NewTaskService(repo, parser)
+		parser := workflow.NewParser(getWorkflowsPath(t))
+
+		taskRepo := repository.NewTaskRepository(repo)
+		workflowLoader := repository.NewWorkflowLoader(parser)
+
+		taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 		ctx := context.Background()
 
@@ -164,13 +186,13 @@ func TestTaskService(t *testing.T) {
 		err = taskService.ReportPhaseError(ctx, task.ID, phase.ID, errMsg)
 
 		// 验证阶段状态已更新为失败
-		updatedPhase, _ := repo.GetPhase(phase.ID)
+		updatedPhase, _ := taskRepo.GetPhase(ctx, phase.ID)
 		if updatedPhase.Status != types.PhaseStatusFailed {
 			t.Errorf("Expected phase status failed, got %s", updatedPhase.Status)
 		}
 
 		// 如果是必需阶段，任务应该失败
-		updatedTask, _ := repo.GetTask(task.ID)
+		updatedTask, _ := taskRepo.GetTask(ctx, task.ID)
 		if updatedTask.Status == types.TaskStatusFailed {
 			// 这是预期行为，返回错误是正常的
 			if err == nil {
@@ -189,8 +211,12 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := workflow.NewParser(getConfigPath(t))
-		taskService := service.NewTaskService(repo, parser)
+		parser := workflow.NewParser(getWorkflowsPath(t))
+
+		taskRepo := repository.NewTaskRepository(repo)
+		workflowLoader := repository.NewWorkflowLoader(parser)
+
+		taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 		ctx := context.Background()
 
@@ -221,8 +247,12 @@ func TestTaskService(t *testing.T) {
 		defer cleanup()
 
 		repo := db.NewRepository(database)
-		parser := workflow.NewParser(getConfigPath(t))
-		taskService := service.NewTaskService(repo, parser)
+		parser := workflow.NewParser(getWorkflowsPath(t))
+
+		taskRepo := repository.NewTaskRepository(repo)
+		workflowLoader := repository.NewWorkflowLoader(parser)
+
+		taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 		ctx := context.Background()
 
@@ -270,15 +300,19 @@ func TestWorkflowTypeDetection(t *testing.T) {
 	defer cleanup()
 
 	repo := db.NewRepository(database)
-	parser := workflow.NewParser(getConfigPath(t))
-	taskService := service.NewTaskService(repo, parser)
+	parser := workflow.NewParser(getWorkflowsPath(t))
+
+	taskRepo := repository.NewTaskRepository(repo)
+	workflowLoader := repository.NewWorkflowLoader(parser)
+
+	taskService := service.NewTaskService(taskRepo, workflowLoader)
 
 	ctx := context.Background()
 
 	tests := []struct {
-		name            string
-		prompt          string
-		workflowName    string
+		name             string
+		prompt           string
+		workflowName     string
 		expectedWorkflow string
 	}{
 		{"文档编写", "编写API文档", "document", "docs"},
@@ -344,13 +378,13 @@ func TestErrorClassification(t *testing.T) {
 
 type timeoutError struct{}
 
-func (e *timeoutError) Error() string   { return "operation timeout" }
-func (e *timeoutError) Timeout() bool   { return true }
+func (e *timeoutError) Error() string { return "operation timeout" }
+func (e *timeoutError) Timeout() bool { return true }
 
 type validationError struct{}
 
-func (e *validationError) Error() string     { return "validation failed" }
-func (e *validationError) Invalid() bool     { return true }
+func (e *validationError) Error() string { return "validation failed" }
+func (e *validationError) Invalid() bool { return true }
 
 type temporaryError struct{}
 

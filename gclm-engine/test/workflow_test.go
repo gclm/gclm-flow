@@ -9,7 +9,7 @@ import (
 
 // TestWorkflowParser 测试流水线解析器
 func TestWorkflowParser(t *testing.T) {
-	parser := workflow.NewParser(getConfigPath(t))
+	parser := workflow.NewParser(getWorkflowsPath(t))
 
 	t.Run("LoadCodeSimpleWorkflow", func(t *testing.T) {
 		p, err := parser.LoadWorkflow("code_simple")
@@ -158,7 +158,7 @@ func TestWorkflowParser(t *testing.T) {
 
 // TestNodeValidation 测试节点验证
 func TestNodeValidation(t *testing.T) {
-	parser := workflow.NewParser("../../workflows")
+	parser := workflow.NewParser(getWorkflowsPath(t))
 
 	t.Run("ValidNode", func(t *testing.T) {
 		node := &types.WorkflowNode{

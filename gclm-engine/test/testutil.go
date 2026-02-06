@@ -6,22 +6,32 @@ import (
 	"testing"
 )
 
-// getConfigPath returns the path to the workflows directory
+// getConfigPath returns the path to the gclm-engine directory (configDir)
+// The gclm-engine directory contains:
+//   - gclm_engine_config.yaml
+//   - workflows/*.yaml
+//   - migrations/*.sql
 func getConfigPath(t *testing.T) string {
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	// If we're in test directory, go up two levels to project root
+	// If we're in test directory, go up one level to gclm-engine
 	if filepath.Base(wd) == "test" {
-		return filepath.Join(filepath.Dir(filepath.Dir(wd)), "workflows")
+		return filepath.Dir(wd)
 	}
 
-	// If we're in gclm-engine, go up one level
+	// If we're in gclm-engine, use current directory
 	if filepath.Base(wd) == "gclm-engine" {
-		return filepath.Join(filepath.Dir(wd), "workflows")
+		return wd
 	}
 
-	return filepath.Join(wd, "workflows")
+	// Default: assume current directory is gclm-engine
+	return wd
+}
+
+// getWorkflowsPath returns the path to the workflows directory
+func getWorkflowsPath(t *testing.T) string {
+	return filepath.Join(getConfigPath(t), "workflows")
 }

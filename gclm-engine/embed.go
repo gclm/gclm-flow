@@ -12,12 +12,9 @@ import (
 //   - migrations/*.sql            Database migration files
 //   - workflows/*.yaml            Default workflow definitions
 //   - gclm_engine_config.yaml     Default configuration
+//   - web                        Web UI static files (HTML, CSS, JS)
 //
-// Future expansion (add when directories exist):
-//   - web/static/*         Static files for web UI
-//   - web/templates/*       HTML templates
-//
-//go:embed migrations/*.sql workflows/*.yaml gclm_engine_config.yaml
+//go:embed migrations/*.sql workflows/*.yaml gclm_engine_config.yaml web
 var AssetsFS embed.FS
 
 // MigrationsFS returns the embedded migrations filesystem

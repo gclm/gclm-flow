@@ -58,61 +58,61 @@ const (
 // Task represents a user task
 type Task struct {
 	ID           string        `json:"id" db:"id"`
-	WorkflowID   string        `json:"workflow_id" db:"workflow_id"`
+	WorkflowID   string        `json:"workflowId" db:"workflow_id"`
 	Prompt       string        `json:"prompt" db:"prompt"`
-	WorkflowType string  `json:"workflow_type" db:"workflow_type"`
+	WorkflowType string        `json:"workflowType" db:"workflow_type"`
 	Status       TaskStatus    `json:"status" db:"status"`
-	CurrentPhase int           `json:"current_phase" db:"current_phase"`
-	TotalPhases  int           `json:"total_phases" db:"total_phases"`
+	CurrentPhase int           `json:"currentPhase" db:"current_phase"`
+	TotalPhases  int           `json:"totalPhases" db:"total_phases"`
 	Result       string        `json:"result,omitempty" db:"result"`
 	Error        string        `json:"error,omitempty" db:"error_message"`
-	CreatedAt    time.Time     `json:"created_at" db:"created_at"`
-	StartedAt    *time.Time    `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt  *time.Time    `json:"completed_at,omitempty" db:"completed_at"`
-	UpdatedAt    time.Time     `json:"updated_at" db:"updated_at"`
+	CreatedAt    time.Time     `json:"createdAt" db:"created_at"`
+	StartedAt    *time.Time    `json:"startedAt,omitempty" db:"started_at"`
+	CompletedAt  *time.Time    `json:"completedAt,omitempty" db:"completed_at"`
+	UpdatedAt    time.Time     `json:"updatedAt" db:"updated_at"`
 }
 
 // TaskPhase represents a single phase in a task
 type TaskPhase struct {
-	ID           string       `json:"id" db:"id"`
-	TaskID       string       `json:"task_id" db:"task_id"`
-	PhaseName    string       `json:"phase_name" db:"phase_name"`
-	DisplayName  string       `json:"display_name" db:"display_name"`
-	Sequence     int          `json:"sequence" db:"sequence"`
-	AgentName    string       `json:"agent_name,omitempty" db:"agent_name"`
-	ModelName    string       `json:"model_name,omitempty" db:"model_name"`
-	Status       PhaseStatus  `json:"status" db:"status"`
-	InputPrompt  string       `json:"input_prompt,omitempty" db:"input_prompt"`
-	OutputText   string       `json:"output_text,omitempty" db:"output_text"`
-	Error        string       `json:"error,omitempty" db:"error_message"`
-	StartedAt    *time.Time   `json:"started_at,omitempty" db:"started_at"`
-	CompletedAt  *time.Time   `json:"completed_at,omitempty" db:"completed_at"`
-	DurationMs   int          `json:"duration_ms,omitempty" db:"duration_ms"`
-	CreatedAt    time.Time    `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at" db:"updated_at"`
+	ID          string      `json:"id" db:"id"`
+	TaskID      string      `json:"taskId" db:"task_id"`
+	PhaseName   string      `json:"phaseName" db:"phase_name"`
+	DisplayName string      `json:"displayName" db:"display_name"`
+	Sequence    int         `json:"sequence" db:"sequence"`
+	AgentName   string      `json:"agentName,omitempty" db:"agent_name"`
+	ModelName   string      `json:"modelName,omitempty" db:"model_name"`
+	Status      PhaseStatus `json:"status" db:"status"`
+	InputPrompt string      `json:"inputPrompt,omitempty" db:"input_prompt"`
+	OutputText  string      `json:"outputText,omitempty" db:"output_text"`
+	Error       string      `json:"error,omitempty" db:"error_message"`
+	StartedAt   *time.Time  `json:"startedAt,omitempty" db:"started_at"`
+	CompletedAt *time.Time  `json:"completedAt,omitempty" db:"completed_at"`
+	DurationMs  int         `json:"durationMs,omitempty" db:"duration_ms"`
+	CreatedAt   time.Time   `json:"createdAt" db:"created_at"`
+	UpdatedAt   time.Time   `json:"updatedAt" db:"updated_at"`
 }
 
 // Event represents an audit log event
 type Event struct {
 	ID         string     `json:"id" db:"id"`
-	TaskID     string     `json:"task_id,omitempty" db:"task_id"`
-	PhaseID    string     `json:"phase_id,omitempty" db:"phase_id"`
-	EventType  EventType  `json:"event_type" db:"event_type"`
-	EventLevel EventLevel `json:"event_level" db:"event_level"`
+	TaskID     string     `json:"taskId,omitempty" db:"task_id"`
+	PhaseID    string     `json:"phaseId,omitempty" db:"phase_id"`
+	EventType  EventType  `json:"eventType" db:"event_type"`
+	EventLevel EventLevel `json:"eventLevel" db:"event_level"`
 	Data       string     `json:"data,omitempty" db:"data"` // JSON string
-	OccurredAt time.Time  `json:"occurred_at" db:"occurred_at"`
+	OccurredAt time.Time  `json:"occurredAt" db:"occurred_at"`
 }
 
 // CreateTaskRequest represents a request to create a new task
 type CreateTaskRequest struct {
-	Prompt       string       `json:"prompt" validate:"required"`
-	WorkflowType string `json:"workflow_type,omitempty"`
-	WorkflowID   string       `json:"workflow_id,omitempty"`
+	Prompt       string `json:"prompt" validate:"required"`
+	WorkflowType string `json:"workflowType,omitempty"`
+	WorkflowID   string `json:"workflowId,omitempty"`
 }
 
 // TaskResponse represents a task response with additional metadata
 type TaskResponse struct {
-	Task    *Task       `json:"task"`
-	Phases  []*TaskPhase `json:"phases,omitempty"`
-	Events  []*Event    `json:"events,omitempty"`
+	Task   *Task       `json:"task"`
+	Phases []*TaskPhase `json:"phases,omitempty"`
+	Events []*Event    `json:"events,omitempty"`
 }
