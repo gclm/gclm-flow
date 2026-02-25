@@ -92,7 +92,11 @@
       "Bash(hostname)",
       "Bash(which *)",
       "Bash(whereis *)",
-      "Bash(env)"
+      "Bash(env)",
+      "Bash(echo*)",
+      "Bash(ps*)",
+      "Bash(lsof*)",
+      "Bash(grep*)"
     ],
     "deny": [
       "Read(/System/**)",
