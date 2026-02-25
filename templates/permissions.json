@@ -143,18 +143,7 @@
       "Bash(init 6)",
       "Bash(poweroff*)",
       "Bash(halt*)",
-      "Bash(sudo *)",
-      "Bash(su *)",
-      "Bash(doas *)",
-      "Bash(pkexec *)",
-      "Bash(ssh *)",
-      "Bash(scp *)",
-      "Bash(rsync *:*)",
-      "Bash(telnet *)",
-      "Bash(nc -l *)",
-      "Bash(kill -9 1)",
-      "Bash(killall *)",
-      "Bash(pkill -9 *)"
+      "Bash(kill -9 1)"
     ]
   }
 }
