@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';if(process.platform!=='win32'&&/(npm run dev\\b|pnpm( run)? dev\\b|yarn dev\\b|bun run dev\\b)/.test(cmd)){console.error('[GCLM] 阻止: Dev server 必须在 tmux 中运行');console.error('[GCLM] 使用: tmux new-session -d -s dev \\\"npm run dev\\\"');console.error('[GCLM] 然后: tmux attach -t dev');process.exit(2)}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "阻止在 tmux 外运行 dev server"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';if(process.platform!=='win32'&&!process.env.TMUX&&/(npm (install|test)|pnpm (install|test)|yarn (install|test)?|bun (install|test)|cargo build|make\\b|docker\\b|pytest|vitest|playwright)/.test(cmd)){console.error('[GCLM] 建议: 长时间命令在 tmux 中运行更稳定');console.error('[GCLM] tmux new -s dev  |  tmux attach -t dev')}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "提醒长时间命令使用 tmux"
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';if(/git push/.test(cmd)){console.error('[GCLM] 提醒: 推送前请确认代码已审查')}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "推送前提醒审查"
+      },
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const p=i.tool_input?.file_path||'';if(/\\.(md|txt)$/.test(p)&&!/(README|CLAUDE|AGENTS|CONTRIBUTING|CHANGELOG|LICENSE|SKILL)\\.md$/i.test(p)&&!/\\.claude[\\/\\\\]plans[\\/\\\\]/.test(p)&&!/(^|[\\/\\\\])(docs|skills)[\\/\\\\]/.test(p)){console.error('[GCLM] 警告: 非标准文档文件');console.error('[GCLM] 文件: '+p);console.error('[GCLM] 建议使用 README.md 或 docs/ 目录')}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "警告非标准文档文件"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const cmd=i.tool_input?.command||'';if(/gh pr create/.test(cmd)){const out=i.tool_output?.output||'';const m=out.match(/https:\\/\\/github.com\\/[^/]+\\/[^/]+\\/pull\\/\\d+/);if(m){console.error('[GCLM] PR 已创建: '+m[0]);const repo=m[0].replace(/https:\\/\\/github.com\\/([^/]+\\/[^/]+)\\/pull\\/\\d+/,'$1');const pr=m[0].replace(/.+\\/pull\\/(\\d+)/,'$1');console.error('[GCLM] 审查命令: gh pr review '+pr+' --repo '+repo)}}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "记录 PR URL 和审查命令"
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/post-edit-format.js\""
+          }
+        ],
+        "description": "编辑后自动格式化代码"
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const p=i.tool_input?.file_path||'';const ns=i.tool_input?.new_string||'';if(/\\.ts$/.test(p)&&ns){const tsCheck=require('child_process').spawnSync('npx',['tsc','--noEmit','--pretty','false'],{cwd:require('path').dirname(p),encoding:'utf-8'});if(tsCheck.stderr){const lines=tsCheck.stderr.split('\\n').filter(l=>l.includes(p)).slice(0,5);if(lines.length){console.error('[GCLM] TypeScript 错误:');lines.forEach(l=>console.error('  '+l))}}}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "编辑 TS 文件后类型检查"
+      },
+      {
+        "matcher": "Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node -e \"let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const i=JSON.parse(d);const p=i.tool_input?.file_path||'';const ns=i.tool_input?.new_string||'';const patterns=['console.log','console.debug','debugger','print(','pprint(','fmt.Println','println!','System.out.print'];for(const pat of patterns){if(ns.includes(pat)){console.error('[GCLM] 警告: 添加了调试语句 - '+pat);console.error('[GCLM] 文件: '+p);break}}}catch{}console.log(d)})\""
+          }
+        ],
+        "description": "警告调试语句"
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/pre-compact.js\""
+          }
+        ],
+        "description": "压缩前保存状态"
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/session-start.js\""
+          }
+        ],
+        "description": "会话开始时加载上下文和检测包管理器"
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/check-console-log.js\""
+          }
+        ],
+        "description": "检查修改文件中的调试语句"
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/hooks/session-end.js\""
+          }
+        ],
+        "description": "会话结束时持久化状态"
+      }
+    ]
+  }
+}

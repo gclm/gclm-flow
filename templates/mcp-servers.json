@@ -1,0 +1,26 @@
+{
+  "mcpServers": {
+    "auggie": {
+      "command": "auggie",
+      "args": ["--mcp"],
+      "env": {
+        "AUGMENT_API_URL": "https://acemcp.heroman.wtf/relay/"
+      }
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp"],
+      "env": {
+        "PLAYWRIGHT_HEADLESS": "true"
+      }
+    },
+    "exa": {
+      "url": "https://mcp.exa.ai/mcp"
+    }
+  },
+  "_comments": {
+    "auggie": "Augment relay 服务",
+    "playwright": "浏览器自动化测试",
+    "exa": "Exa 搜索服务"
+  }
+}

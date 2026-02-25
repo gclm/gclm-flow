@@ -1,0 +1,61 @@
+{
+  "name": "gclm-flow",
+  "version": "1.0.0",
+  "description": "Gclm-Flow - 全栈开发工作流增强，智能检测语言/框架，统一命令体验",
+  "main": "src/index.js",
+  "bin": {
+    "gclm-flow": "./bin/cli.js"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cli",
+    "ai",
+    "agents",
+    "workflow",
+    "fullstack",
+    "java",
+    "python",
+    "golang",
+    "rust"
+  ],
+  "author": "gclm",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gclm/gclm-flow"
+  },
+  "files": [
+    "bin",
+    "src",
+    "scripts",
+    "agents",
+    "rules",
+    "commands",
+    "skills",
+    "hooks",
+    "templates"
+  ],
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "figlet": "^1.10.0",
+    "fs-extra": "^11.2.0",
+    "glob": "^10.3.10",
+    "inquirer": "^9.2.23",
+    "ora": "^8.0.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@vitest/coverage-v8": "^1.6.0",
+    "vitest": "^1.6.0"
+  }
+}
