@@ -33,39 +33,44 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
-      - name: Get previous tag
-        id: get_prev_tag
-        run: |
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_OUTPUT
-
-      - name: Generate changelog
+      - name: Generate Changelog
         id: changelog
-        run: |
-          CURRENT_TAG="v${{ steps.get_version.outputs.VERSION }}"
-          PREV_TAG="${{ steps.get_prev_tag.outputs.PREV_TAG }}"
-
-          if [ -n "$PREV_TAG" ]; then
-            echo "Generating changelog from $PREV_TAG to $CURRENT_TAG"
-            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
-          else
-            echo "Generating changelog for initial release"
-            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
-          fi
-
-          # Save to file for multiline support
-          echo "$CHANGELOG" > /tmp/changelog.txt
-          echo "CHANGELOG_FILE=/tmp/changelog.txt" >> $GITHUB_OUTPUT
-
-          # Also print for debugging
-          echo "Changelog:"
-          echo "$CHANGELOG"
+        uses: mikepenz/release-changelog-builder-action@v4
+        with:
+          configuration: |
+            {
+              "categories": [
+                {
+                  "title": "## 🚀 Features",
+                  "labels": ["feat", "feature"]
+                },
+                {
+                  "title": "## 🐛 Bug Fixes",
+                  "labels": ["fix", "bugfix"]
+                },
+                {
+                  "title": "## 📝 Documentation",
+                  "labels": ["docs", "documentation"]
+                },
+                {
+                  "title": "## 🔧 Maintenance",
+                  "labels": ["chore", "refactor", "perf", "test", "ci"]
+                }
+              ],
+              "template": "#{{CHANGELOG}}\n\n## Contributors\n\n#{{CONTRIBUTORS}}",
+              "pr_template": "- #{{TITLE}} (#{{NUMBER}}) @#{{AUTHOR}}",
+              "empty_template": "- No changes",
+              "max_tags_to_fetch": 50,
+              "max_pull_requests": 200
+            }
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           name: v${{ steps.get_version.outputs.VERSION }}
-          body_path: /tmp/changelog.txt
+          body: ${{ steps.changelog.outputs.changelog }}
           draft: false
           prerelease: false
         env:
