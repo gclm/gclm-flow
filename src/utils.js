@@ -26,7 +26,7 @@ export const COMPONENTS = {
     name: 'Commands（命令）',
     description: '12个斜杠命令（/gclm:init, /gclm:plan, /gclm:do 等）',
     source: 'commands/gclm',
-    target: 'commands',
+    target: 'commands/gclm',
     pattern: '*.md'
   },
   skills: {

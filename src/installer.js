@@ -169,12 +169,17 @@ async function installSpecialComponent(component, sourceDir, targetDir, force) {
     messages.push(`安装 CLAUDE.md → ${claudeMdTarget}`);
   }
 
-  // 合并 statusline.json 和 mcp-servers.json 到 settings.json
+  // 合并 statusline.json、mcp-servers.json、permissions.json 到 settings.json
   const statuslineSource = path.join(sourcePath, 'statusline.json');
   const mcpSource = path.join(sourcePath, 'mcp-servers.json');
+  const permissionsSource = path.join(sourcePath, 'permissions.json');
   const settingsTarget = path.join(targetDir, 'settings.json');
 
-  if (await fs.pathExists(statuslineSource) || await fs.pathExists(mcpSource)) {
+  const hasConfigUpdates = await fs.pathExists(statuslineSource) ||
+                           await fs.pathExists(mcpSource) ||
+                           await fs.pathExists(permissionsSource);
+
+  if (hasConfigUpdates) {
     let settings = {};
     if (await fs.pathExists(settingsTarget)) {
       if (!force) {
@@ -199,9 +204,32 @@ async function installSpecialComponent(component, sourceDir, targetDir, force) {
       }
     }
 
+    // 合并 permissions 配置
+    if (await fs.pathExists(permissionsSource)) {
+      const permissionsConfig = await fs.readJson(permissionsSource);
+      if (permissionsConfig.permissions) {
+        // 合并 allow 列表（去重）
+        if (permissionsConfig.permissions.allow) {
+          settings.permissions = settings.permissions || {};
+          const existingAllow = new Set(settings.permissions.allow || []);
+          permissionsConfig.permissions.allow.forEach(item => existingAllow.add(item));
+          settings.permissions.allow = Array.from(existingAllow);
+        }
+        // 合并 deny 列表（去重）
+        if (permissionsConfig.permissions.deny) {
+          settings.permissions = settings.permissions || {};
+          const existingDeny = new Set(settings.permissions.deny || []);
+          permissionsConfig.permissions.deny.forEach(item => existingDeny.add(item));
+          settings.permissions.deny = Array.from(existingDeny);
+        }
+      }
+      messages.push('更新 settings.json（statusLine + mcpServers + permissions）');
+    } else {
+      messages.push('更新 settings.json（statusLine + mcpServers）');
+    }
+
     await fs.writeJson(settingsTarget, settings, { spaces: 2 });
     installedFiles.push('settings.json');
-    messages.push('更新 settings.json（statusLine + mcpServers）');
   }
 
   return { files: installedFiles, messages };
