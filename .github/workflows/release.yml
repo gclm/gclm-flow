@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -31,14 +33,39 @@ jobs:
         id: get_version
         run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
 
+      - name: Get previous tag
+        id: get_prev_tag
+        run: |
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          echo "PREV_TAG=$PREV_TAG" >> $GITHUB_OUTPUT
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CURRENT_TAG="v${{ steps.get_version.outputs.VERSION }}"
+          PREV_TAG="${{ steps.get_prev_tag.outputs.PREV_TAG }}"
+
+          if [ -n "$PREV_TAG" ]; then
+            echo "Generating changelog from $PREV_TAG to $CURRENT_TAG"
+            CHANGELOG=$(git log $PREV_TAG..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          else
+            echo "Generating changelog for initial release"
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges)
+          fi
+
+          # Save to file for multiline support
+          echo "$CHANGELOG" > /tmp/changelog.txt
+          echo "CHANGELOG_FILE=/tmp/changelog.txt" >> $GITHUB_OUTPUT
+
+          # Also print for debugging
+          echo "Changelog:"
+          echo "$CHANGELOG"
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           name: v${{ steps.get_version.outputs.VERSION }}
-          body: |
-            ## Changes
-
-            See [commit history](https://github.com/${{ github.repository }}/commits/v${{ steps.get_version.outputs.VERSION }}) for details.
+          body_path: /tmp/changelog.txt
           draft: false
           prerelease: false
         env:
