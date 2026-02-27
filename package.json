@@ -9,7 +9,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "sync:local": "node scripts/sync-local-to-repo.js",
+    "sync:local:codex": "node scripts/sync-local-to-repo.js --platform codex-cli",
+    "sync:local:claude": "node scripts/sync-local-to-repo.js --platform claude-code",
+    "sync:local:all": "node scripts/sync-local-to-repo.js --platform all"
   },
   "keywords": [
     "claude",

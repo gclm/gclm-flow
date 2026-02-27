@@ -40,6 +40,27 @@ Gclm-Flow 全局配置，用于 Codex CLI。
 
 ---
 
+## Skills 维护规范
+
+- `SKILL.md` 保持精简入口，聚焦触发条件和最短执行路径
+- 详细流程、检查清单、长案例统一放在 `references/`
+- 在 `SKILL.md` 中通过链接引用 `references/*.md`，按需展开
+- 避免在 `SKILL.md` 持续堆积长排障记录
+- 新增内容超过约 30 行时，优先拆分到 `references/`
+- 参考文件遵循单主题原则（例如：`github-actions-vm-image-ci.md`）
+- 新增经验时采用“双写入”：
+- `SKILL.md` 增加一句触发提示
+- `references/` 增加完整可复用内容
+- 当 `SKILL.md` 明显膨胀时，立即做分层重构
+
+### CI/架构经验（来自 vm-images 事故）
+
+- 工作流中禁止硬编码架构二进制（例如 `yq_linux_amd64`）
+- 基于 `uname -m` 做架构映射后再下载二进制
+- 设计镜像定制流程时，必须前置校验 host/guest 架构兼容性
+
+---
+
 ## 代码风格
 
 - 注释**非必要不形成**
