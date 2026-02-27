@@ -22,6 +22,41 @@ export async function runInteractive() {
   // 选择平台
   const platform = await promptPlatform();
 
+  // 处理"全部平台"选项
+  if (platform === 'all') {
+    console.log(chalk.cyan('  将安装到所有平台：'));
+    console.log(chalk.gray('    - Claude Code (~/.claude)'));
+    console.log(chalk.gray('    - Codex CLI (~/.codex + ~/.agents/skills)'));
+    console.log();
+
+    // 使用默认配置安装
+    const claudeComponents = ['agents', 'rules', 'skills', 'hooks', 'userConfig'];
+    const languages = ['common', 'java', 'python', 'golang', 'rust', 'frontend'];
+    const codexComponents = ['skills', 'userConfig'];
+
+    console.log(chalk.cyan('  Claude Code 组件:'));
+    claudeComponents.forEach(c => console.log(chalk.gray(`    - ${c}`)));
+    console.log();
+    console.log(chalk.cyan('  Codex CLI 组件:'));
+    codexComponents.forEach(c => console.log(chalk.gray(`    - ${c}`)));
+    console.log();
+
+    const { confirmed } = await import('inquirer').then(m => m.default.prompt([{
+      type: 'confirm',
+      name: 'confirmed',
+      message: '确认安装到所有平台？',
+      default: true
+    }]));
+
+    if (!confirmed) {
+      console.log(chalk.yellow('  已取消安装'));
+      return;
+    }
+
+    await installAll(claudeComponents, languages, { force: false });
+    return;
+  }
+
   const platformConfig = PLATFORMS[platform];
   const components = getComponents(platform);
   const installedVersion = await getInstalledVersion(platform);
