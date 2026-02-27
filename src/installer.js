@@ -120,7 +120,9 @@ async function installComponent(component, sourceDir, targetDir, force, platform
   }
 
   const installedFiles = [];
+  const messages = [];
   const sourcePath = path.join(sourceDir, component.source);
+  const homeDir = os.homedir();
 
   // 处理 skills 组件的平台特定路径
   let targetPath;
@@ -128,8 +130,8 @@ async function installComponent(component, sourceDir, targetDir, force, platform
   if (component.source === 'skills') {
     const platformConfig = getPlatformConfig(platform);
     // skillsTarget 是相对于 home 目录的路径，如 '.claude/skills' 或 '.agents/skills'
-    targetPath = path.join(os.homedir(), platformConfig.skillsTarget);
-    relativeBase = os.homedir();
+    targetPath = path.join(homeDir, platformConfig.skillsTarget);
+    relativeBase = homeDir;
   } else {
     targetPath = path.join(targetDir, component.target);
     relativeBase = targetDir;
@@ -170,7 +172,62 @@ async function installComponent(component, sourceDir, targetDir, force, platform
     }
   }
 
-  return { files: installedFiles, messages: [] };
+  // Codex CLI: 同时安装到 ~/.codex/skills 以兼容不同版本
+  if (platform === 'codex-cli' && component.source === 'skills') {
+    const codexSkillsDir = path.join(homeDir, '.codex', 'skills');
+    const codexInstalledFiles = await copySkillsToDir(sourcePath, codexSkillsDir, component, force);
+    installedFiles.push(...codexInstalledFiles);
+    if (codexInstalledFiles.length > 0) {
+      messages.push(`同时安装到 ~/.codex/skills (${codexInstalledFiles.length} 个文件)`);
+    }
+  }
+
+  return { files: installedFiles, messages };
+}
+
+/**
+ * 复制 skills 到指定目录（用于 Codex 多目录兼容）
+ */
+async function copySkillsToDir(sourcePath, targetDir, component, force) {
+  const installedFiles = [];
+  const homeDir = os.homedir();
+
+  await fs.ensureDir(targetDir);
+
+  if (component.recursive) {
+    const pattern = path.join(sourcePath, component.pattern).replace(/\\/g, '/');
+    const files = await glob(pattern, { nodir: true });
+
+    for (const file of files) {
+      const relativePath = path.relative(sourcePath, file);
+      const destPath = path.join(targetDir, relativePath);
+
+      await fs.ensureDir(path.dirname(destPath));
+
+      if (!force && await fs.pathExists(destPath)) {
+        await fs.copy(destPath, `${destPath}.backup`);
+      }
+
+      await fs.copy(file, destPath);
+      installedFiles.push(path.relative(homeDir, destPath));
+    }
+  } else {
+    const pattern = path.join(sourcePath, component.pattern).replace(/\\/g, '/');
+    const files = await glob(pattern, { nodir: true });
+
+    for (const file of files) {
+      const destPath = path.join(targetDir, path.basename(file));
+
+      if (!force && await fs.pathExists(destPath)) {
+        await fs.copy(destPath, `${destPath}.backup`);
+      }
+
+      await fs.copy(file, destPath);
+      installedFiles.push(path.relative(homeDir, destPath));
+    }
+  }
+
+  return installedFiles;
 }
 
 /**
@@ -321,9 +378,14 @@ export async function uninstall(platform) {
 
     await cleanupEmptyDirs(configDir);
     // 清理 skills 目录（如果与 configDir 不同）
-    const skillsDir = path.join(os.homedir(), platformConfig.skillsTarget);
+    const skillsDir = path.join(homeDir, platformConfig.skillsTarget);
     if (skillsDir !== configDir) {
       await cleanupEmptyDirs(skillsDir);
+    }
+    // Codex CLI: 同时清理 ~/.codex/skills
+    if (platform === 'codex-cli') {
+      const codexSkillsDir = path.join(homeDir, '.codex', 'skills');
+      await cleanupEmptyDirs(codexSkillsDir);
     }
     await fs.remove(versionFile);
 

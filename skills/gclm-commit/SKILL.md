@@ -65,7 +65,6 @@ metadata:
 - 具体变更说明 1
 - 具体变更说明 2
 
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 ## 选项
