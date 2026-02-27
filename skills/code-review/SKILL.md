@@ -116,4 +116,4 @@ metadata:
 ## 相关技能
 
 - `testing` - 运行测试验证
-- `gclm-core` - fix 工作流
+- `gclm` - fix 工作流

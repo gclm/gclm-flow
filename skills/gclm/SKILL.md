@@ -1,5 +1,5 @@
 ---
-name: gclm-core
+name: gclm
 description: |
   Gclm-Flow 智能开发工作流系统。自动分析用户意图并编排工作流：
   (1) 新项目 → 自动调用 gclm-init

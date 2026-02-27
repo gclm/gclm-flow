@@ -30,7 +30,7 @@ Gclm-Flow 全局配置，用于 Claude Code。
 
 | 技能 | 用途 |
 |------|------|
-| `gclm-core` | 智能编排（推荐入口） |
+| `gclm` | 智能编排（推荐入口） |
 | `gclm-init` | 项目初始化 |
 | `gclm-commit` | 智能提交 |
 | `code-review` | 代码审查 |
@@ -109,12 +109,12 @@ Gclm-Flow 全局配置，用于 Claude Code。
 
 ### 新功能开发
 ```
-/gclm-core → plan → do → test → review → commit
+/gclm → plan → do → test → review → commit
 ```
 
 ### Bug 修复
 ```
-/gclm-core → fix → test → learn
+/gclm → fix → test → learn
 ```
 
 ---

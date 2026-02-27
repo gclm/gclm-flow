@@ -94,11 +94,11 @@ export async function install(platform, selectedComponents, selectedLanguages, o
     console.log(chalk.cyan('  快速开始:'));
     if (platform === 'claude-code') {
       console.log(chalk.gray('    1. 重启 Claude Code'));
-      console.log(chalk.gray('    2. 使用 /gclm-core 智能编排'));
+      console.log(chalk.gray('    2. 使用 /gclm 智能编排'));
       console.log(chalk.gray('    3. 使用 /gclm-init 初始化项目'));
     } else {
       console.log(chalk.gray('    1. 重启 Codex CLI'));
-      console.log(chalk.gray('    2. 使用 /gclm-core 智能编排'));
+      console.log(chalk.gray('    2. 使用 /gclm 智能编排'));
       console.log(chalk.gray('    3. 使用 /gclm-init 初始化项目'));
     }
     console.log();

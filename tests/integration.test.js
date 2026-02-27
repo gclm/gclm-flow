@@ -60,7 +60,7 @@ describe('installer integration', () => {
       // 验证内容
       const content = await fs.readFile(agentsMd, 'utf-8');
       expect(content).toContain('Gclm-Flow');
-      expect(content).toContain('gclm-core');
+      expect(content).toContain('gclm');
 
       // 清理
       await uninstall(platform);
