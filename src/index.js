@@ -148,6 +148,21 @@ export async function runInstall(options = {}) {
  * 更新
  */
 export async function runUpdate(platform = 'claude-code') {
+  if (platform === 'all') {
+    // 更新所有平台
+    for (const key of Object.keys(PLATFORMS)) {
+      const installedVersion = await getInstalledVersion(key);
+      if (installedVersion) {
+        console.log(chalk.cyan(`  正在更新 Gclm-Flow (${PLATFORMS[key].name})...`));
+        await update(key);
+        console.log(chalk.green(`  ${PLATFORMS[key].name} 更新完成！`));
+      } else {
+        console.log(chalk.yellow(`  Gclm-Flow 尚未安装 (${PLATFORMS[key].name})，跳过`));
+      }
+    }
+    return;
+  }
+
   console.log(chalk.cyan(`  正在更新 Gclm-Flow (${PLATFORMS[platform].name})...`));
   await update(platform);
   console.log(chalk.green('  更新完成！'));
@@ -157,6 +172,19 @@ export async function runUpdate(platform = 'claude-code') {
  * 卸载
  */
 export async function runUninstall(platform = 'claude-code') {
+  if (platform === 'all') {
+    // 卸载所有平台
+    for (const key of Object.keys(PLATFORMS)) {
+      const installedVersion = await getInstalledVersion(key);
+      if (installedVersion) {
+        await uninstall(key);
+      } else {
+        console.log(chalk.yellow(`  Gclm-Flow 尚未安装 (${PLATFORMS[key].name})，跳过`));
+      }
+    }
+    return;
+  }
+
   const installedVersion = await getInstalledVersion(platform);
 
   if (!installedVersion) {
