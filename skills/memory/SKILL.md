@@ -1,83 +1,59 @@
-# Memory Skills
+---
+name: memory
+description: |
+  记忆系统技能。当用户要求记住、记录错误、提取模式、查询历史时自动触发。
+  包含：(1) 错误记忆 (2) 模式记忆 (3) 知识查询
+metadata:
+  author: gclm-flow
+  version: "2.0.0"
+  platforms:
+    - claude-code
+    - codex-cli
+  tags:
+    - memory
+    - learning
+---
 
-记忆系统技能，管理错误记录和模式提取。
+# 记忆系统
 
-## 何时使用
-
-- 记录遇到的错误和解决方案
-- 提取可复用的代码模式
-- 查询历史知识
-- 避免重复犯错
-
-## 记忆类型
-
-| 类型 | 内容 | 存储位置 |
-|------|------|----------|
-| 错误记忆 | 错误 + 解决方案 | `~/.gclm-flow/memory/errors/` |
-| 模式记忆 | 成功的代码模式 | `~/.gclm-flow/memory/patterns/` |
-
-## 工作流程
-
-### 记录错误
+## 数据存储
 
 ```
-1. 遇到错误
-2. 分析原因
-3. 找到解决方案
-4. 调用 /gclm:learn error 记录
+~/.gclm-flow/memory/
+├── errors/              # 错误记忆（按语言分类）
+│   ├── java.json
+│   ├── python.json
+│   └── ...
+├── patterns/            # 模式记忆（按类型分类）
+│   ├── api-design.json
+│   └── ...
+└── index.json           # 记忆索引
 ```
 
-### 提取模式
-
-```
-1. 完成任务
-2. 识别成功模式
-3. 调用 /gclm:learn pattern 提取
-```
-
-### 查询记忆
-
-```
-1. 开始新任务
-2. 调用 /gclm:learn search 查询相关记忆
-3. 应用历史知识
-```
-
-## 数据格式
+## 功能
 
 ### 错误记忆
-```json
-{
-  "id": "err-20260225-001",
-  "language": "python",
-  "error": {
-    "type": "ImportError",
-    "message": "cannot import name 'Depends'"
-  },
-  "solution": {
-    "description": "循环导入问题",
-    "actions": ["将导入语句移到函数内部"]
-  },
-  "occurrences": 2,
-  "tags": ["import", "circular-dependency"]
-}
-```
+- 记录遇到的错误和解决方案
+- 避免重复犯错
+- 按语言/框架分类
 
 ### 模式记忆
-```json
-{
-  "id": "pat-20260225-001",
-  "type": "api-design",
-  "name": "统一响应格式",
-  "description": "所有 API 返回统一的响应结构",
-  "when_to_use": ["新建 REST API"],
-  "usage_count": 15
-}
+- 提取成功的代码模式
+- 促进复用
+- 持续改进
+
+### 知识查询
+- 查询历史解决方案
+- 检索相关模式
+
+## 使用方式
+
+```
+/memory save <error|pattern> <content>
+/memory query <keyword>
+/memory list
 ```
 
-## 相关命令
+## Codex 兼容
 
-- `/gclm:learn error` - 记录错误
-- `/gclm:learn pattern` - 提取模式
-- `/gclm:learn search` - 搜索记忆
-- `/gclm:learn stats` - 记忆统计
+Codex CLI 使用内置 memories 系统，路径：`~/.codex/memories/`

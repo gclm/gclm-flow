@@ -1,95 +1,61 @@
-# Database Skills
+---
+name: database
+description: |
+  数据库技能。当用户要求数据库、sql、migration、schema、查询优化时自动触发。
+  包含：(1) PostgreSQL (2) MySQL (3) MongoDB (4) Redis
+metadata:
+  author: gclm-flow
+  version: "2.0.0"
+  platforms:
+    - claude-code
+    - codex-cli
+  tags:
+    - database
+    - sql
+    - migration
+---
 
-数据库相关技能，包括 PostgreSQL、MySQL、Redis 等。
+# 数据库
 
-## 何时使用
+## 支持的数据库
 
-- 数据库设计
-- 查询优化
-- 迁移管理
-- 性能调优
+| 数据库 | ORM/驱动 | 适用场景 |
+|--------|----------|----------|
+| PostgreSQL | GORM/SQLx/TypeORM | 关系型数据 |
+| MySQL | GORM/TypeORM | 关系型数据 |
+| MongoDB | Mongoose | 文档存储 |
+| Redis | go-redis/redis-py | 缓存 |
 
-## 包含内容
+## 最佳实践
 
-### 1. PostgreSQL 模式
+### 连接池
 
-#### 连接池配置
-```python
-# SQLAlchemy
-engine = create_engine(
-    DATABASE_URL,
-    pool_size=10,
-    max_overflow=20,
-    pool_pre_ping=True
-)
+```go
+sqlDB, _ := db.DB()
+sqlDB.SetMaxIdleConns(10)
+sqlDB.SetMaxOpenConns(100)
+sqlDB.SetConnMaxLifetime(time.Hour)
 ```
 
-```java
-// Spring Boot HikariCP
-spring:
-  datasource:
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+### 查询优化
+
+- 使用索引
+- 避免 SELECT *
+- 分页查询
+- 避免 N+1 问题
+
+### Migration
+
+```
+# 创建迁移
+migrate create -ext sql -dir migrations create_users_table
+
+# 执行迁移
+migrate -path migrations -database $DB_URL up
 ```
 
-#### 查询优化
-- 使用 `EXPLAIN ANALYZE` 分析查询
-- 创建合适的索引
-- 避免 `SELECT *`
-- 使用连接池
+## 相关技能
 
-### 2. 数据库迁移
-
-#### Flyway (Java)
-```
-db/migration/
-├── V1__create_users_table.sql
-├── V2__add_email_index.sql
-└── V3__create_orders_table.sql
-```
-
-#### Alembic (Python)
-```bash
-alembic revision --autogenerate -m "add user table"
-alembic upgrade head
-```
-
-#### golang-migrate
-```bash
-migrate create -ext sql -dir migrations -seq create_users
-migrate -database $DATABASE_URL -path migrations up
-```
-
-### 3. Redis 缓存
-
-#### 缓存模式
-```python
-# Cache-Aside
-def get_user(user_id):
-    cached = redis.get(f"user:{user_id}")
-    if cached:
-        return cached
-
-    user = db.query(User).get(user_id)
-    redis.setex(f"user:{user_id}", 3600, user)
-    return user
-```
-
-#### 常用模式
-- 缓存穿透：使用空值缓存
-- 缓存雪崩：设置随机过期时间
-- 缓存击穿：使用分布式锁
-
-### 4. 性能优化
-
-| 问题 | 解决方案 |
-|------|----------|
-| N+1 查询 | 使用 JOIN 或批量查询 |
-| 缺少索引 | 分析慢查询，创建索引 |
-| 大表扫描 | 分区表、添加索引 |
-| 连接数过多 | 使用连接池 |
-
-## 相关命令
-
-- `/gclm:review --scope performance` - 性能审查
+- `java-stack` - JPA/Repository 模式
+- `python-stack` - SQLAlchemy 模式
+- `go-stack` - GORM 模式

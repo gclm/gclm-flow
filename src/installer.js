@@ -1,63 +1,70 @@
 import fs from 'fs-extra';
 import path from 'path';
+import os from 'os';
 import chalk from 'chalk';
 import ora from 'ora';
 import { glob } from 'glob';
 import {
-  getClaudeDir,
+  getConfigDir,
   getGclmFlowDir,
   getSourceDir,
   getPackageVersion,
-  saveInstalledVersion
+  saveInstalledVersion,
+  getComponents,
+  getPlatformConfig,
+  LANGUAGES
 } from './utils.js';
-import { COMPONENTS, LANGUAGES } from './utils.js';
 
 /**
  * 安装组件
  */
-export async function install(selectedComponents, selectedLanguages, options = {}) {
+export async function install(platform, selectedComponents, selectedLanguages, options = {}) {
   const { force = false, silent = false } = options;
-  const claudeDir = getClaudeDir();
+  const configDir = getConfigDir(platform);
   const sourceDir = getSourceDir();
   const version = getPackageVersion();
+  const platformConfig = getPlatformConfig(platform);
+  const components = getComponents(platform);
 
-  const spinner = silent ? null : ora('正在安装 Gclm-Flow...').start();
-  const messages = []; // 收集安装过程中的消息
+  const spinner = silent ? null : ora(`正在安装 Gclm-Flow 到 ${platformConfig.name}...`).start();
+  const messages = [];
 
   try {
     // 确保目录存在
-    await fs.ensureDir(claudeDir);
+    await fs.ensureDir(configDir);
     await fs.ensureDir(getGclmFlowDir());
 
     const installedFiles = [];
 
     // 安装组件
     for (const componentKey of selectedComponents) {
-      const component = COMPONENTS[componentKey];
+      const component = components[componentKey];
       if (!component) continue;
 
       if (spinner) spinner.text = `正在安装 ${component.name}...`;
 
-      const result = await installComponent(component, sourceDir, claudeDir, force);
+      const result = await installComponent(component, sourceDir, configDir, force, platform);
       installedFiles.push(...result.files);
       if (result.messages) messages.push(...result.messages);
     }
 
-    // 安装语言规则
-    for (const langKey of selectedLanguages) {
-      const lang = LANGUAGES[langKey];
-      if (!lang) continue;
+    // 安装语言规则（仅 Claude Code）
+    if (platform === 'claude-code') {
+      for (const langKey of selectedLanguages) {
+        const lang = LANGUAGES[langKey];
+        if (!lang) continue;
 
-      if (spinner) spinner.text = `正在安装 ${lang.name} 规则...`;
+        if (spinner) spinner.text = `正在安装 ${lang.name} 规则...`;
 
-      const files = await installLanguageRule(lang, sourceDir, claudeDir, force);
-      installedFiles.push(...files);
+        const files = await installLanguageRule(lang, sourceDir, configDir, force);
+        installedFiles.push(...files);
+      }
     }
 
     // 保存版本信息
-    await saveInstalledVersion(version, selectedComponents, selectedLanguages, installedFiles);
+    await saveInstalledVersion(platform, version, selectedComponents, selectedLanguages, installedFiles);
 
-    if (spinner) spinner.succeed(chalk.green('安装完成！'));
+    if (spinner) spinner.succeed(chalk.green(`安装完成！(${platformConfig.name})`));
 
     // 显示收集的消息
     if (messages.length > 0) {
@@ -68,20 +75,32 @@ export async function install(selectedComponents, selectedLanguages, options = {
     console.log();
     console.log(chalk.cyan('  已安装组件:'));
     selectedComponents.forEach(key => {
-      console.log(`    ${chalk.green('✓')} ${COMPONENTS[key].name}`);
+      if (components[key]) {
+        console.log(`    ${chalk.green('✓')} ${components[key].name}`);
+      }
     });
-    console.log();
-    console.log(chalk.cyan('  已安装语言规则:'));
-    selectedLanguages.forEach(key => {
-      console.log(`    ${chalk.green('✓')} ${LANGUAGES[key].name}`);
-    });
+
+    if (platform === 'claude-code' && selectedLanguages.length > 0) {
+      console.log();
+      console.log(chalk.cyan('  已安装语言规则:'));
+      selectedLanguages.forEach(key => {
+        console.log(`    ${chalk.green('✓')} ${LANGUAGES[key].name}`);
+      });
+    }
+
     console.log();
     console.log(chalk.gray(`  共安装 ${installedFiles.length} 个文件`));
     console.log();
     console.log(chalk.cyan('  快速开始:'));
-    console.log(chalk.gray('    1. 重启 Claude Code'));
-    console.log(chalk.gray('    2. 使用 /gclm:init 初始化项目'));
-    console.log(chalk.gray('    3. 使用 /gclm:plan 规划任务'));
+    if (platform === 'claude-code') {
+      console.log(chalk.gray('    1. 重启 Claude Code'));
+      console.log(chalk.gray('    2. 使用 /gclm-core 智能编排'));
+      console.log(chalk.gray('    3. 使用 /gclm-init 初始化项目'));
+    } else {
+      console.log(chalk.gray('    1. 重启 Codex CLI'));
+      console.log(chalk.gray('    2. 使用 /gclm-core 智能编排'));
+      console.log(chalk.gray('    3. 使用 /gclm-init 初始化项目'));
+    }
     console.log();
 
   } catch (error) {
@@ -93,23 +112,32 @@ export async function install(selectedComponents, selectedLanguages, options = {
 
 /**
  * 安装单个组件
- * @returns {{ files: string[], messages: string[] }}
  */
-async function installComponent(component, sourceDir, targetDir, force) {
+async function installComponent(component, sourceDir, targetDir, force, platform) {
   // 处理特殊组件（userConfig）
   if (component.special) {
-    return await installSpecialComponent(component, sourceDir, targetDir, force);
+    return await installSpecialComponent(component, sourceDir, targetDir, force, platform);
   }
 
   const installedFiles = [];
   const sourcePath = path.join(sourceDir, component.source);
-  const targetPath = path.join(targetDir, component.target);
 
-  // 确保目标目录存在
+  // 处理 skills 组件的平台特定路径
+  let targetPath;
+  let relativeBase; // 用于计算相对路径的基准目录
+  if (component.source === 'skills') {
+    const platformConfig = getPlatformConfig(platform);
+    // skillsTarget 是相对于 home 目录的路径，如 '.claude/skills' 或 '.agents/skills'
+    targetPath = path.join(os.homedir(), platformConfig.skillsTarget);
+    relativeBase = os.homedir();
+  } else {
+    targetPath = path.join(targetDir, component.target);
+    relativeBase = targetDir;
+  }
+
   await fs.ensureDir(path.dirname(targetPath));
 
   if (component.recursive) {
-    // 递归安装目录
     const pattern = path.join(sourcePath, component.pattern).replace(/\\/g, '/');
     const files = await glob(pattern, { nodir: true });
 
@@ -120,15 +148,13 @@ async function installComponent(component, sourceDir, targetDir, force) {
       await fs.ensureDir(path.dirname(destPath));
 
       if (!force && await fs.pathExists(destPath)) {
-        // 备份已存在的文件
         await fs.copy(destPath, `${destPath}.backup`);
       }
 
       await fs.copy(file, destPath);
-      installedFiles.push(path.relative(targetDir, destPath));
+      installedFiles.push(path.relative(relativeBase, destPath));
     }
   } else {
-    // 单文件或通配符
     const pattern = path.join(sourcePath, component.pattern).replace(/\\/g, '/');
     const files = await glob(pattern, { nodir: true });
 
@@ -140,7 +166,7 @@ async function installComponent(component, sourceDir, targetDir, force) {
       }
 
       await fs.copy(file, destPath);
-      installedFiles.push(path.relative(targetDir, destPath));
+      installedFiles.push(path.relative(relativeBase, destPath));
     }
   }
 
@@ -149,87 +175,89 @@ async function installComponent(component, sourceDir, targetDir, force) {
 
 /**
  * 安装特殊组件（userConfig）
- * @returns {{ files: string[], messages: string[] }}
  */
-async function installSpecialComponent(component, sourceDir, targetDir, force) {
+async function installSpecialComponent(component, sourceDir, targetDir, force, platform) {
   const installedFiles = [];
   const messages = [];
   const sourcePath = path.join(sourceDir, component.source);
+  const platformConfig = getPlatformConfig(platform);
+  const homeDir = os.homedir();
 
-  // 安装 CLAUDE.md
-  const claudeMdSource = path.join(sourcePath, 'user-CLAUDE.md');
-  const claudeMdTarget = path.join(targetDir, 'CLAUDE.md');
+  // 安装配置文件（CLAUDE.md 或 AGENTS.md）
+  const configSource = path.join(sourcePath, platformConfig.templateName);
+  const configTarget = path.join(targetDir, platformConfig.configFileName);
 
-  if (await fs.pathExists(claudeMdSource)) {
-    if (!force && await fs.pathExists(claudeMdTarget)) {
-      await fs.copy(claudeMdTarget, `${claudeMdTarget}.backup`);
+  if (await fs.pathExists(configSource)) {
+    if (!force && await fs.pathExists(configTarget)) {
+      await fs.copy(configTarget, `${configTarget}.backup`);
     }
-    await fs.copy(claudeMdSource, claudeMdTarget);
-    installedFiles.push('CLAUDE.md');
-    messages.push(`安装 CLAUDE.md → ${claudeMdTarget}`);
+    await fs.copy(configSource, configTarget);
+    // 使用相对于 home 目录的路径
+    installedFiles.push(path.relative(homeDir, configTarget));
+    messages.push(`安装 ${platformConfig.configFileName} → ${configTarget}`);
   }
 
-  // 合并 statusline.json、mcp-servers.json、permissions.json 到 settings.json
-  const statuslineSource = path.join(sourcePath, 'statusline.json');
-  const mcpSource = path.join(sourcePath, 'mcp-servers.json');
-  const permissionsSource = path.join(sourcePath, 'permissions.json');
-  const settingsTarget = path.join(targetDir, 'settings.json');
+  // 合并配置到 settings.json（仅 Claude Code）
+  if (platform === 'claude-code') {
+    const statuslineSource = path.join(sourcePath, 'statusline.json');
+    const mcpSource = path.join(sourcePath, 'mcp-servers.json');
+    const permissionsSource = path.join(sourcePath, 'permissions.json');
+    const settingsTarget = path.join(targetDir, 'settings.json');
 
-  const hasConfigUpdates = await fs.pathExists(statuslineSource) ||
-                           await fs.pathExists(mcpSource) ||
-                           await fs.pathExists(permissionsSource);
+    const hasConfigUpdates = await fs.pathExists(statuslineSource) ||
+                             await fs.pathExists(mcpSource) ||
+                             await fs.pathExists(permissionsSource);
 
-  if (hasConfigUpdates) {
-    let settings = {};
-    if (await fs.pathExists(settingsTarget)) {
-      if (!force) {
-        await fs.copy(settingsTarget, `${settingsTarget}.backup`);
-      }
-      settings = await fs.readJson(settingsTarget);
-    }
-
-    // 合并 statusLine 配置
-    if (await fs.pathExists(statuslineSource)) {
-      const statuslineConfig = await fs.readJson(statuslineSource);
-      if (statuslineConfig.statusLine) {
-        settings.statusLine = statuslineConfig.statusLine;
-      }
-    }
-
-    // 合并 mcpServers 配置
-    if (await fs.pathExists(mcpSource)) {
-      const mcpConfig = await fs.readJson(mcpSource);
-      if (mcpConfig.mcpServers) {
-        settings.mcpServers = { ...settings.mcpServers, ...mcpConfig.mcpServers };
-      }
-    }
-
-    // 合并 permissions 配置
-    if (await fs.pathExists(permissionsSource)) {
-      const permissionsConfig = await fs.readJson(permissionsSource);
-      if (permissionsConfig.permissions) {
-        // 合并 allow 列表（去重）
-        if (permissionsConfig.permissions.allow) {
-          settings.permissions = settings.permissions || {};
-          const existingAllow = new Set(settings.permissions.allow || []);
-          permissionsConfig.permissions.allow.forEach(item => existingAllow.add(item));
-          settings.permissions.allow = Array.from(existingAllow);
+    if (hasConfigUpdates) {
+      let settings = {};
+      if (await fs.pathExists(settingsTarget)) {
+        if (!force) {
+          await fs.copy(settingsTarget, `${settingsTarget}.backup`);
         }
-        // 合并 deny 列表（去重）
-        if (permissionsConfig.permissions.deny) {
-          settings.permissions = settings.permissions || {};
-          const existingDeny = new Set(settings.permissions.deny || []);
-          permissionsConfig.permissions.deny.forEach(item => existingDeny.add(item));
-          settings.permissions.deny = Array.from(existingDeny);
+        settings = await fs.readJson(settingsTarget);
+      }
+
+      // 合并 statusLine 配置
+      if (await fs.pathExists(statuslineSource)) {
+        const statuslineConfig = await fs.readJson(statuslineSource);
+        if (statuslineConfig.statusLine) {
+          settings.statusLine = statuslineConfig.statusLine;
         }
       }
-      messages.push('更新 settings.json（statusLine + mcpServers + permissions）');
-    } else {
-      messages.push('更新 settings.json（statusLine + mcpServers）');
-    }
 
-    await fs.writeJson(settingsTarget, settings, { spaces: 2 });
-    installedFiles.push('settings.json');
+      // 合并 mcpServers 配置
+      if (await fs.pathExists(mcpSource)) {
+        const mcpConfig = await fs.readJson(mcpSource);
+        if (mcpConfig.mcpServers) {
+          settings.mcpServers = { ...settings.mcpServers, ...mcpConfig.mcpServers };
+        }
+      }
+
+      // 合并 permissions 配置
+      if (await fs.pathExists(permissionsSource)) {
+        const permissionsConfig = await fs.readJson(permissionsSource);
+        if (permissionsConfig.permissions) {
+          settings.permissions = settings.permissions || {};
+          if (permissionsConfig.permissions.allow) {
+            const existingAllow = new Set(settings.permissions.allow || []);
+            permissionsConfig.permissions.allow.forEach(item => existingAllow.add(item));
+            settings.permissions.allow = Array.from(existingAllow);
+          }
+          if (permissionsConfig.permissions.deny) {
+            const existingDeny = new Set(settings.permissions.deny || []);
+            permissionsConfig.permissions.deny.forEach(item => existingDeny.add(item));
+            settings.permissions.deny = Array.from(existingDeny);
+          }
+        }
+        messages.push('更新 settings.json（statusLine + mcpServers + permissions）');
+      } else {
+        messages.push('更新 settings.json（statusLine + mcpServers）');
+      }
+
+      await fs.writeJson(settingsTarget, settings, { spaces: 2 });
+      // 使用相对于 home 目录的路径
+      installedFiles.push(path.relative(homeDir, settingsTarget));
+    }
   }
 
   return { files: installedFiles, messages };
@@ -242,8 +270,8 @@ async function installLanguageRule(lang, sourceDir, targetDir, force) {
   const installedFiles = [];
   const sourcePath = path.join(sourceDir, lang.source);
   const targetPath = path.join(targetDir, lang.target);
+  const homeDir = os.homedir();
 
-  // 检查源文件是否存在
   if (!await fs.pathExists(sourcePath)) {
     console.log(chalk.yellow(`  警告: 规则文件不存在 ${lang.source}`));
     return installedFiles;
@@ -256,7 +284,8 @@ async function installLanguageRule(lang, sourceDir, targetDir, force) {
   }
 
   await fs.copy(sourcePath, targetPath);
-  installedFiles.push(path.relative(targetDir, targetPath));
+  // 使用 home 目录作为基准，保持与其他组件一致
+  installedFiles.push(path.relative(homeDir, targetPath));
 
   return installedFiles;
 }
@@ -264,37 +293,41 @@ async function installLanguageRule(lang, sourceDir, targetDir, force) {
 /**
  * 卸载组件
  */
-export async function uninstall(selectedComponents) {
-  const claudeDir = getClaudeDir();
-  const spinner = ora('正在卸载 Gclm-Flow...').start();
+export async function uninstall(platform) {
+  const configDir = getConfigDir(platform);
+  const platformConfig = getPlatformConfig(platform);
+  const versionFile = path.join(configDir, platformConfig.versionFile);
+  const homeDir = os.homedir();
+
+  const spinner = ora(`正在卸载 Gclm-Flow (${platformConfig.name})...`).start();
 
   try {
-    const versionFile = path.join(claudeDir, '.gclm-version');
     let installedFiles = [];
 
-    // 读取已安装文件列表
     if (await fs.pathExists(versionFile)) {
       const versionInfo = await fs.readJson(versionFile);
       installedFiles = versionInfo.installedFiles || [];
     }
 
-    // 删除已安装的文件
     let deletedCount = 0;
     for (const file of installedFiles) {
-      const filePath = path.join(claudeDir, file);
+      // 文件路径是相对于 home 目录存储的
+      const filePath = path.join(homeDir, file);
       if (await fs.pathExists(filePath)) {
         await fs.remove(filePath);
         deletedCount++;
       }
     }
 
-    // 清理空目录
-    await cleanupEmptyDirs(claudeDir);
-
-    // 删除版本文件
+    await cleanupEmptyDirs(configDir);
+    // 清理 skills 目录（如果与 configDir 不同）
+    const skillsDir = path.join(os.homedir(), platformConfig.skillsTarget);
+    if (skillsDir !== configDir) {
+      await cleanupEmptyDirs(skillsDir);
+    }
     await fs.remove(versionFile);
 
-    spinner.succeed(chalk.green('卸载完成！'));
+    spinner.succeed(chalk.green(`卸载完成！(${platformConfig.name})`));
     console.log();
     console.log(chalk.gray(`  已删除 ${deletedCount} 个文件`));
 
@@ -312,11 +345,9 @@ async function cleanupEmptyDirs(rootDir) {
   try {
     const dirs = await glob('**/*/', { cwd: rootDir });
 
-    // 从最深层开始删除空目录
     for (const dir of dirs.sort().reverse()) {
       const fullPath = path.join(rootDir, dir);
 
-      // 检查是否是目录
       try {
         const stat = await fs.stat(fullPath);
         if (!stat.isDirectory()) continue;
@@ -326,11 +357,10 @@ async function cleanupEmptyDirs(rootDir) {
           await fs.rmdir(fullPath);
         }
       } catch {
-        // 忽略错误，继续处理其他目录
         continue;
       }
     }
-  } catch (error) {
+  } catch {
     // 忽略清理错误
   }
 }
@@ -338,17 +368,30 @@ async function cleanupEmptyDirs(rootDir) {
 /**
  * 更新组件
  */
-export async function update(selectedComponents, selectedLanguages) {
-  const claudeDir = getClaudeDir();
-  const versionFile = path.join(claudeDir, '.gclm-version');
+export async function update(platform, selectedComponents, selectedLanguages) {
+  const configDir = getConfigDir(platform);
+  const platformConfig = getPlatformConfig(platform);
+  const versionFile = path.join(configDir, platformConfig.versionFile);
 
-  // 读取当前安装信息
   if (await fs.pathExists(versionFile)) {
     const versionInfo = await fs.readJson(versionFile);
     selectedComponents = selectedComponents || versionInfo.components;
     selectedLanguages = selectedLanguages || versionInfo.languages;
   }
 
-  // 强制覆盖安装
-  await install(selectedComponents, selectedLanguages, { force: true });
+  await install(platform, selectedComponents, selectedLanguages, { force: true });
+}
+
+/**
+ * 安装所有平台
+ */
+export async function installAll(selectedComponents, selectedLanguages, options = {}) {
+  console.log(chalk.cyan('安装到所有平台...\n'));
+
+  // Claude Code
+  await install('claude-code', selectedComponents, selectedLanguages, options);
+  console.log();
+
+  // Codex CLI
+  await install('codex-cli', ['skills', 'userConfig'], [], options);
 }
