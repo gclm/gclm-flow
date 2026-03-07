@@ -1,119 +1,93 @@
 ---
 name: code-review
-description: |
-  代码审查技能。当用户要求代码审查、review、检查代码、安全检查、质量检查、verify、验证时自动触发。
-  包含：(1) 代码质量检查 (2) 安全性检查 (3) 性能检查 (4) 设计验证
-metadata:
-  author: gclm-flow
-  version: "2.0.0"
-  platforms:
-    - claude-code
-    - codex-cli
-  tags:
-    - review
-    - quality
-    - security
-    - verify
+description: Use when reviewing code changes, pull requests, regressions, security concerns, or implementation quality. Trigger on review, verify, audit, 检查代码, 代码审查, 安全检查, 性能检查, PR review.
 ---
 
 # 代码审查
 
-执行全面的代码质量检查和设计验证。
+像资深工程师一样做结构化审查，先给出问题，再给总结。
 
-## 审查类型
+## 核心规则
 
-### 1. 代码审查
+- 默认从 `git diff`、PR 变更、最近修改文件开始，不做无边界全文审查。
+- 输出以 `findings` 为主，按严重级别排序；没有问题时也要明确说明“未发现问题”。
+- 关注行为回归、边界条件、安全、性能、可维护性、测试缺口，不以风格意见淹没关键问题。
+- 发现高风险结论时，必须指出触发条件、影响范围、复现线索和最小修复方向。
 
-| 维度 | 检查项 |
-|------|--------|
-| **代码质量** | 可读性、可维护性、可测试性、代码复用 |
-| **安全性** | 输入验证、认证授权、敏感数据、SQL 注入、XSS |
-| **性能** | 算法效率、资源管理、缓存策略、数据库查询 |
-| **规范** | 编码规范、最佳实践、项目约定 |
+## 审查顺序
 
-### 2. 设计验证
+1. 明确变更范围：`git status`、`git diff --stat`、关键文件 diff。
+2. 理解意图：需求、计划、设计文档、现有约定、相关 tests。
+3. 逐文件审查：优先看新增逻辑、危险路径、删除/重构区域。
+4. 交叉验证：检查实现是否和测试、文档、配置、迁移脚本一致。
+5. 输出报告：先列 findings，再补充风险、假设、测试缺口和变更概览。
 
-对照设计文档验证实现完整性：
-- 读取设计文档
-- 检查项目结构
-- 对比分析差异
+当 diff 里出现删除旧代码、移除配置、废弃接口、迁移脚本时，额外执行 `removal-plan` 检查。
 
-## 工作流程
+## 重点检查项
 
-### 代码审查流程
+- 正确性：逻辑错误、状态遗漏、空值/并发/顺序问题、兼容性回归
+- 安全性：认证授权、注入、XSS/SSRF/路径遍历、敏感信息泄露、权限边界
+- 性能：N+1、重复 IO、无界循环、缓存缺失、锁竞争、过大对象复制
+- 可维护性：命名、职责分离、重复逻辑、隐式耦合、错误处理、可观测性
+- 测试：是否覆盖新行为、失败路径、回归场景；测试是否真验证了需求
+- 删除/弃用：大规模删除、废弃开关、配置迁移、数据迁移是否有依赖核查和回滚路径
 
-1. 获取 git diff
-2. 识别修改范围
-3. 多维度审查
-4. 生成报告
-
-### 设计验证流程
-
-1. 解析设计文档
-2. 扫描实际结构
-3. 对比分析
-
-| 状态 | 描述 |
-|------|------|
-| ✅ 符合 | 与设计一致 |
-| ⚠️ 缺失 | 设计中有但实现中没有 |
-| ➕ 多余 | 实现中有但设计中没有 |
+详细清单见：
+- [severity-guide.md](references/severity-guide.md)
+- [security-checklist.md](references/security-checklist.md)
+- [performance-checklist.md](references/performance-checklist.md)
+- [removal-plan.md](references/removal-plan.md)
+- [review-output-template.md](references/review-output-template.md)
 
 ## 输出格式
 
-### 代码审查报告
+### 有问题时
 
 ```markdown
-# 代码审查报告
+1. [严重级别] [文件:行号] 问题结论
+   影响：会导致什么实际后果
+   依据：为什么这是问题
+   建议：最小修复方向
 
-## 概述
-- 审查文件: X 个
-- 发现问题: Y 个
+## Open Questions
+- 需要确认的前提或设计意图
 
-## 问题列表
+## Residual Risks
+- 未覆盖但值得关注的风险
 
-### 严重 (X 个)
-1. **[文件:行号]** 问题描述
-   - 建议: ...
-
-### 警告 (Y 个)
-1. ...
-
-### 建议 (Z 个)
-1. ...
+## Change Summary
+- 简述本次变更做了什么
 ```
 
-### 设计验证报告
+### 无问题时
 
 ```markdown
-# 设计验证报告
+未发现需要阻塞的代码问题。
 
-## 概述
-- 符合: X 项
-- 缺失: Y 项
-- 多余: Z 项
-- 符合率: N%
+Residual Risks
+- 仍未验证的边界或测试空白
 
-## 详细报告
-
-### 目录结构
-| 设计路径 | 实际状态 |
-|----------|----------|
-| src/handlers/ | ✅ |
-| src/services/ | ⚠️ 缺失 |
-
-## 建议
-1. [修复建议]
+Change Summary
+- 简述审查范围与主要改动
 ```
 
-## 选项
+## 严重级别
 
-- `--security`: 只进行安全审查
-- `--performance`: 只进行性能审查
-- `--fix`: 自动修复可修复的问题
-- `--json`: 输出 JSON 格式
+- `P0`：会导致数据破坏、权限绕过、严重安全事故、生产不可用
+- `P1`：明显功能错误、稳定性问题、较高概率回归
+- `P2`：可维护性/性能/测试缺口，建议在合并前处理
+- `P3`：低风险建议，非阻塞
 
-## 相关技能
+## 审查边界
 
-- `testing` - 运行测试验证
-- `gclm` - fix 工作流
+- 不把“我更喜欢另一种写法”当作问题。
+- 不在证据不足时下结论；需要时明确写出假设。
+- 用户要求 review 时，主回答必须先给 findings，而不是先写摘要。
+
+## 联动技能
+
+- `receiving-code-review`：处理审查反馈
+- `requesting-code-review`：在实现后发起复审
+- `verification-before-completion`：宣称完成前做证据验证
+- `systematic-debugging`：发现问题后先追根因
