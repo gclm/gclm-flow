@@ -29,6 +29,7 @@
 ## 目录说明
 
 - `config.toml`：Codex 主配置
+- 默认 MCP：`chrome-devtools`、`auggie`、`exa`
 - `AGENTS.md`：全局运行约束
 - `agents/`：可复用的 agent 角色配置
 - `hooks/`：混合式门禁、提醒与审查钩子

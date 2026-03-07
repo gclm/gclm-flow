@@ -69,8 +69,22 @@ description = "文档记录员，负责计划、文档与决策沉淀"
 config_file = "./agents/recorder.toml"
 
 [agents.remember]
-description = "记忆管理员，负责模式提取与错误沉淀"
+description = "经验回写管理员，负责领域经验提炼与结构化沉淀"
 config_file = "./agents/remember.toml"
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = ["-y", "chrome-devtools-mcp@latest", "--auto-connect"]
+
+[mcp_servers.auggie]
+command = "auggie"
+args = ["--mcp", "--mcp-auto-workspace"]
+
+[mcp_servers.auggie.env]
+AUGMENT_API_URL = "https://acemcp.heroman.wtf/relay/"
+
+[mcp_servers.exa]
+url = "https://mcp.exa.ai/mcp"
 
 [hooks]
 
