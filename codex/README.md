@@ -12,6 +12,7 @@
 - `skills/`：自定义 skills
 - `bin/sync-to-home.sh`
 - `bin/diff-home.sh`
+- `bin/analyze-history.py`
 - `bin/lint-skills.py`
 - `bin/serve-local.sh`
 - `bin/github-webhook-local.sh`
@@ -33,13 +34,14 @@
 - `hooks/`：混合式门禁、提醒与审查钩子
 - `skills/`：按工作流、编排层、质量层、领域层划分的 skills 体系
 - `bin/`：将源码配置发布到 `~/.codex` 的同步与校验脚本
+- `bin/analyze-history.py`：读取 `history.jsonl` 并输出复盘报告
 - `bin/lint-skills.py`：skills 结构校验脚本，可单独运行，也会被 hook 调用
 
 ## Skill 分层
 
 | 分层 | 用途 | 代表 skills |
 | --- | --- | --- |
-| `workflow` | 定义通用工作方式，覆盖方案设计、计划编写、调试、TDD、完成前验证与经验沉淀。 | `brainstorming`、`writing-plans`、`systematic-debugging`、`test-driven-development`、`verification-before-completion`、`writing-skills`、`updating-domain-skills` |
+| `workflow` | 定义通用工作方式，覆盖方案设计、计划编写、调试、TDD、完成前验证、历史复盘与经验沉淀。 | `brainstorming`、`writing-plans`、`systematic-debugging`、`test-driven-development`、`verification-before-completion`、`writing-skills`、`reviewing-codex-history`、`updating-domain-skills` |
 | `orchestration` | 处理执行编排与任务推进方式，覆盖 worktree、按计划执行、并行 agent 调度与分支收尾。 | `using-git-worktrees`、`executing-plans`、`dispatching-parallel-agents`、`finishing-a-development-branch` |
 | `quality` | 负责质量把关，统一代码审查和测试策略，避免各领域重复维护同类规则。 | `code-review`、`testing` |
 | `domain` | 承载领域特有知识与栈差异，覆盖文档、数据库、DevOps 以及各语言框架实践。 | `documentation`、`devops`、`database`、`frontend-stack`、`python-stack`、`go-stack`、`java-stack`、`rust-stack` |
@@ -51,6 +53,11 @@
 3. 用 `bin/lint-skills.py` 检查 skills 结构是否漂移。
 4. 用 `bin/sync-to-home.sh` 发布到 `~/.codex`。
 5. 将 `~/.codex` 视为运行态副本，不直接在里面做 Git 管理。
+
+## 复盘入口
+
+- `python3 ~/.codex/bin/analyze-history.py`：从 `~/.codex/history.jsonl` 生成复盘报告
+- 复盘结论先分流：workflow/config/tooling 改进走全局治理，领域经验再交给 `updating-domain-skills`
 
 ## 维护约定
 
@@ -112,5 +119,6 @@
 
 - `bin/serve-local.sh`：用本地稳定参数启动 `codex serve`
 - `bin/github-webhook-local.sh`：用环境变量方式启动 `codex github`
+- `bin/analyze-history.py`：基于 `history.jsonl` 输出复盘报告和改进路由建议
 - `bin/lint-skills.py`：检查 skill frontmatter、references 链接和基础结构
 - `bin/smoke-test-hooks.sh`：通过 `codex exec` 跑一轮真实 hook smoke test
