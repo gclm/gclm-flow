@@ -2,7 +2,7 @@
 
 ## Goal
 
-Create a Git-managed source of truth for personal Codex configuration under `gclm-flow/codex/`, with fork-first defaults, reusable agent roles, mixed-mode hooks, and a safe publish path into `~/.codex`.
+Create a Git-managed source of truth for personal Codex configuration under `gclm-flow/codex/`, with fork-first defaults, reusable agent roles, Git-managed custom skills, mixed-mode hooks, common runtime launchers, and a safe publish path into `~/.codex`.
 
 ## Context
 
@@ -21,9 +21,13 @@ gclm-flow/
     config.toml
     AGENTS.md
     agents/*.toml
+    skills/*
     hooks/*.py
     bin/sync-to-home.sh
     bin/diff-home.sh
+    bin/serve-local.sh
+    bin/github-webhook-local.sh
+    bin/smoke-test-hooks.sh
 ```
 
 ## Key Decisions
@@ -55,6 +59,8 @@ The existing markdown role descriptions under `gclm-flow/agents/` are preserved 
 
 Main config responsibilities:
 - local provider registration
+- Git-managed custom skills mirrored from `~/.codex/skills`
+- common launchers for `codex serve` and `codex github`
 - default safety boundaries
 - three profiles: `fast`, `deep`, `review`
 - agent registry

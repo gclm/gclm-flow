@@ -4,7 +4,7 @@ This branch is a standalone source of truth for personal Codex configuration.
 
 ## Contents
 
-- `codex/`: managed Codex config, hooks, agent roles, and sync scripts
+- `codex/`: managed Codex config, hooks, agent roles, skills, and sync scripts
 - `docs/plans/`: design and implementation notes for the Codex setup
 
 ## Publish workflow

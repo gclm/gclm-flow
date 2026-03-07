@@ -178,3 +178,9 @@ Expected: commit succeeds
 
 Run: `git push -u origin codex`
 Expected: remote `codex` branch updated
+
+## Runtime helpers
+
+- `codex/bin/serve-local.sh` starts `codex serve` with stable local defaults.
+- `codex/bin/github-webhook-local.sh` starts `codex github` with env-driven defaults.
+- `codex/bin/smoke-test-hooks.sh` runs a reproducible real hook smoke test.

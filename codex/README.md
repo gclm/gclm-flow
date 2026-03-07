@@ -9,8 +9,12 @@ Managed here:
 - `AGENTS.md`
 - `agents/*.toml`
 - `hooks/*.py`
+- `skills/`: Git-managed custom skills
 - `bin/sync-to-home.sh`
 - `bin/diff-home.sh`
+- `bin/serve-local.sh`
+- `bin/github-webhook-local.sh`
+- `bin/smoke-test-hooks.sh`
 
 Not managed here:
 - `~/.codex/auth.json`
@@ -34,3 +38,9 @@ Not managed here:
 2. Review with `bin/diff-home.sh`.
 3. Publish with `bin/sync-to-home.sh`.
 4. Keep runtime state in `~/.codex` out of Git.
+
+## Common launchers
+
+- `bin/serve-local.sh`: start `codex serve` with stable local defaults
+- `bin/github-webhook-local.sh`: start `codex github` with env-driven webhook settings
+- `bin/smoke-test-hooks.sh`: run a real hook smoke test through `codex exec`
