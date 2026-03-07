@@ -2,7 +2,7 @@
 name: gclm
 description: |
   Gclm-Flow 智能开发工作流系统。自动分析用户意图并编排工作流：
-  (1) 新项目 → 自动调用 gclm-init
+  (1) 新项目或缺基础文档 → 自动调用 documentation
   (2) 修复问题 → fix 流程
   (3) 新功能 → plan → do 流程
   (4) 提交代码 → 调用 gclm-commit
@@ -25,7 +25,7 @@ metadata:
 
 | 检测条件 | 状态 | 动作 |
 |----------|------|------|
-| 无 llmdoc/AGENTS.md | 新项目 | 调用 `gclm-init` |
+| 无基础文档（README/AGENTS/docs） | 新项目或文档未初始化 | 调用 `documentation` |
 | 无 .git | 非 Git 项目 | 建议初始化 Git |
 | 有 llmdoc | 已有项目 | 继续分析意图 |
 
@@ -85,7 +85,6 @@ metadata:
 
 | 技能 | 调用方式 | 用途 |
 |------|----------|------|
-| `gclm-init` | `/gclm-init` | 项目初始化 |
 | `gclm-commit` | `/gclm-commit` | 智能提交 |
 | `java-stack` | `/java-stack` | Java/Spring Boot |
 | `python-stack` | `/python-stack` | Python/FastAPI |

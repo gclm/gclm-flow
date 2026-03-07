@@ -1,69 +1,62 @@
 ---
 name: documentation
-description: |
-  文档管理技能。当用户要求文档、docs、README、注释、API 文档时自动触发。
-  包含：(1) llmdoc 结构 (2) 文档约定 (3) API 文档生成
-metadata:
-  author: gclm-flow
-  version: "2.0.0"
-  platforms:
-    - claude-code
-    - codex-cli
-  tags:
-    - docs
-    - readme
-    - api
+description: Use when initializing project docs, updating README or API docs, restructuring documentation, or checking whether code, config, and user-visible behavior changes need documentation updates.
 ---
 
-# 文档管理
+# 文档
 
-## llmdoc 结构
+这个 skill 统一负责文档初始化、文档维护和文档结构治理。它既覆盖新项目的基础文档骨架，也覆盖后续 README、API、运维和架构文档更新。
 
-```
-llmdoc/
-├── reference/
-│   ├── conventions/      # 项目约定
-│   └── guidelines/       # 开发指南
-├── architecture/         # 架构文档
-├── api/                  # API 文档
-└── guides/               # 使用指南
-```
+## 核心规则
 
-## 文档约定
+- 先判断是“初始化文档”还是“更新已有文档”
+- 文档只更新和当前变更直接相关的部分，不机械大扫除
+- 改了接口、配置、命令、用户可见行为后，要检查是否需要同步文档
+- 初始化文档时，先给出最小可用骨架，不默认生成过多模板
 
-### 命名规范
-- 使用小写和连字符：`api-design.md`
-- 版本化：`migration-v2.md`
+## 两类场景
 
-### 格式规范
-- 使用 Markdown
-- 标题层级清晰
-- 代码块指定语言
+### 1. 文档初始化
 
-### API 文档
+适用于：
+- 新仓库缺少 `README.md`、`AGENTS.md`、`docs/` 或 `llmdoc/` 等基础结构
+- 需要建立最小项目说明、开发入口、架构骨架
 
-```markdown
-# API 名称
+最小初始化通常包括：
+- 项目概览
+- 开发/运行入口
+- 核心目录说明
+- 后续扩展所需的文档目录骨架
 
-## 端点
-`GET /api/v1/users`
+详细参考：
+- [documentation-bootstrap.md](references/documentation-bootstrap.md)
 
-## 参数
-| 名称 | 类型 | 必需 | 描述 |
-|------|------|------|------|
+### 2. 文档更新
 
-## 响应
-```json
-{
-  "success": true,
-  "data": {}
-}
-```
+适用于：
+- API、schema、配置、CLI、hooks、agents、部署流程发生变化
+- 需要补 README、运维说明、架构说明或迁移说明
 
-## 示例
-```
+详细参考：
+- [documentation-drift-checklist.md](references/documentation-drift-checklist.md)
 
-## 详见
+## 工作顺序
 
-- [llmdoc-structure.md](references/llmdoc-structure.md)
-- [doc-conventions.md](references/doc-conventions.md)
+1. 识别变更面：初始化、README、API、配置、运维、架构。
+2. 确定最小需要更新的文档集合。
+3. 保持文档结构清晰，长清单放 `references/`。
+4. 如文档与代码存在漂移，优先修正用户会直接依赖的部分。
+
+## 常见误区
+
+- 新项目一上来生成一大套没人维护的空文档
+- 改了接口或配置，却只改代码不改说明
+- README 写成营销文案，没有可执行入口
+- 把一次性会议记录混进长期文档结构
+
+## 联动技能
+
+- `gclm`
+- `code-review`
+- `testing`
+- `verification-before-completion`
