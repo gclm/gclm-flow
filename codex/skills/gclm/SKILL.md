@@ -1,98 +1,31 @@
 ---
 name: gclm
-description: |
-  Gclm-Flow 智能开发工作流系统。自动分析用户意图并编排工作流：
-  (1) 新项目或缺基础文档 → 自动调用 documentation
-  (2) 修复问题 → fix 流程
-  (3) 新功能 → plan → do 流程
-  (4) 提交代码 → 调用 gclm-commit
-  (5) 问答/调研 → ask 流程
-metadata:
-  author: gclm-flow
-  version: "2.0.0"
-  platforms:
-    - claude-code
-    - codex-cli
+description: Use when the user wants a high-level route to the right skill for planning, implementation, review, documentation, testing, or commit work, but the exact entry point is still unclear.
 ---
 
-# Gclm-Flow 智能编排器
+# Gclm 路由
 
-智能开发工作流系统，自动检测项目状态和用户意图，编排合适的工作流。
+这个 skill 不再承担“大总管实现流程”，只负责把任务快速路由到更具体的 skill。
 
-## 智能检测
+## 路由规则
 
-### 项目状态检测
+- 新项目或缺基础文档：`documentation`
+- 多步任务、需求不清：`brainstorming` 或 `writing-plans`
+- 按计划推进：`executing-plans`
+- 代码审查、复审、反馈处理：`code-review`
+- 测试策略与测试执行：`testing`
+- 提交：`gclm-commit`
+- 技术栈专项：`frontend-stack` / `python-stack` / `go-stack` / `java-stack` / `rust-stack`
+- 部署与交付：`devops`
+- 数据库：`database`
 
-| 检测条件 | 状态 | 动作 |
-|----------|------|------|
-| 无基础文档（README/AGENTS/docs） | 新项目或文档未初始化 | 调用 `documentation` |
-| 无 .git | 非 Git 项目 | 建议初始化 Git |
-| 有 llmdoc | 已有项目 | 继续分析意图 |
+## 使用方式
 
-### 语言栈检测
+1. 先识别任务最核心的问题域。
+2. 如果已经能明确入口，就直接用对应 skill，不要停留在 `gclm`。
+3. 如果任务跨多个域，先选主 skill，再按需联动其他 skill。
 
-| 检测文件 | 语言栈 | 调用技能 |
-|----------|--------|----------|
-| `pom.xml` / `build.gradle` | Java | `java-stack` |
-| `requirements.txt` / `pyproject.toml` | Python | `python-stack` |
-| `go.mod` | Go | `go-stack` |
-| `Cargo.toml` | Rust | `rust-stack` |
-| `package.json` | 前端 | `frontend-stack` |
+## 何时不用
 
-### 意图识别
-
-| 关键词 | 意图 | 工作流 |
-|--------|------|--------|
-| 修复、fix、报错、错误 | 问题修复 | [fix-workflow](references/fix-workflow.md) |
-| 实现、开发、新增、功能 | 新功能开发 | [plan](references/plan-workflow.md) → [do](references/do-workflow.md) |
-| 怎么、为什么、如何、查询 | 问答/调研 | [ask-workflow](references/ask-workflow.md) |
-| 提交、commit | 代码提交 | `gclm-commit` |
-| 审查、review、检查 | 代码审查 | `code-review` |
-| 测试、test | 运行测试 | `testing` |
-
-## 工作流
-
-### 新功能开发
-```
-检测语言栈 → 加载对应技能 → plan → do → test → review
-```
-详见：[plan-workflow.md](references/plan-workflow.md)、[do-workflow.md](references/do-workflow.md)
-
-### 问题修复
-```
-分析错误 → 定位问题 → 查询历史 → 修复 → 验证 → 记录
-```
-详见：[fix-workflow.md](references/fix-workflow.md)
-
-### 问答/调研
-```
-分析问题 → 收集上下文 → 查询历史 → 生成回答
-```
-详见：[ask-workflow.md](references/ask-workflow.md)
-
-## 代理协作
-
-| 任务 | 代理 | 职责 |
-|------|------|------|
-| 规划 | planner | 需求分析、任务分解 |
-| 实现 | builder | 代码编写、重构 |
-| 审查 | reviewer | 质量检查、安全审计 |
-| 调研 | investigator | 技术调研、上下文理解 |
-| 记录 | recorder | 文档维护、知识管理 |
-| 记忆 | remember | 错误记录、模式提取 |
-
-## 可用技能
-
-| 技能 | 调用方式 | 用途 |
-|------|----------|------|
-| `gclm-commit` | `/gclm-commit` | 智能提交 |
-| `java-stack` | `/java-stack` | Java/Spring Boot |
-| `python-stack` | `/python-stack` | Python/FastAPI |
-| `go-stack` | `/go-stack` | Go/Gin |
-| `rust-stack` | `/rust-stack` | Rust/Axum |
-| `frontend-stack` | `/frontend-stack` | React/Vue |
-| `code-review` | `/code-review` | 代码审查 |
-| `testing` | `/testing` | 测试 |
-| `documentation` | `/documentation` | 文档 |
-| `database` | `/database` | 数据库 |
-| `devops` | `/devops` | DevOps |
+- 已经明确知道要用哪个具体 skill
+- 已经在某个领域 skill 的执行上下文里

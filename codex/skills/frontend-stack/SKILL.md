@@ -1,131 +1,27 @@
 ---
 name: frontend-stack
-description: |
-  前端技术栈完整开发指南。当检测到前端项目（package.json 且无后端框架）
-  或用户明确要求 React/Vue/Angular 开发时自动触发。包含：
-  (1) 项目结构规范 (2) React/Vue 最佳实践 (3) 测试模式 (4) 状态管理
-metadata:
-  author: gclm-flow
-  version: "2.0.0"
-  platforms:
-    - claude-code
-    - codex-cli
-  tags:
-    - frontend
-    - react
-    - vue
-    - typescript
+description: Use when working on React, Vue, TypeScript frontend architecture, UI state, rendering behavior, frontend tooling, or browser-facing interaction details.
 ---
 
-# 前端技术栈开发指南
+# 前端技术栈
 
-## 框架检测
+这个 skill 负责前端项目的入口判断和框架级经验索引。主文档只保留适用场景、关键关注点和 references 入口。
 
-- 存在 `react` 依赖 → React，详见 [react.md](references/react.md)
-- 存在 `vue` 依赖 → Vue
-- 测试相关 → 详见 [testing.md](references/testing.md)
+## 核心规则
 
-## 标准项目结构
+- 先判断问题属于 UI 结构、状态管理、数据获取、交互行为、构建工具还是样式系统
+- 通用测试策略看 `testing`；前端特有测试细节看 `references/testing.md`
+- 真实项目经验优先写入 `references/`，不要把主文档重新膨胀成模板库
 
-```
-src/
-├── api/                 # API 调用
-├── components/          # 通用组件
-│   ├── ui/
-│   └── layout/
-├── hooks/               # 自定义 Hooks
-├── pages/               # 页面组件
-├── store/               # 状态管理
-├── types/               # 类型定义
-├── utils/               # 工具函数
-└── App.tsx
-```
+## 重点关注
 
-## 核心规范
+- 组件边界和复用
+- 状态管理与数据流
+- 浏览器端错误处理与加载状态
+- 可访问性、性能、交互一致性
+- 构建工具与运行时环境差异
 
-### 组件定义 (React)
+## 参考资料
 
-```typescript
-interface UserCardProps {
-  user: User;
-  onEdit?: (user: User) => void;
-}
-
-export const UserCard: React.FC<UserCardProps> = ({ user, onEdit }) => {
-  return (
-    <div className="user-card">
-      <h3>{user.name}</h3>
-      <p>{user.email}</p>
-      {onEdit && <button onClick={() => onEdit(user)}>Edit</button>}
-    </div>
-  );
-};
-```
-
-### 自定义 Hooks
-
-```typescript
-function useUsers() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-
-  useEffect(() => {
-    fetchUsers()
-      .then(setUsers)
-      .catch(setError)
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { users, loading, error };
-}
-```
-
-### API 调用
-
-```typescript
-class ApiClient {
-  private baseUrl: string;
-
-  async get<T>(path: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`);
-    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-    return response.json();
-  }
-
-  async post<T>(path: string, data: unknown): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${path}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return response.json();
-  }
-}
-```
-
-### 状态管理 (Zustand)
-
-```typescript
-import { create } from 'zustand';
-
-interface UserStore {
-  users: User[];
-  addUser: (user: User) => void;
-}
-
-export const useUserStore = create<UserStore>((set) => ({
-  users: [],
-  addUser: (user) => set((state) => ({ users: [...state.users, user] })),
-}));
-```
-
-## 测试规范
-
-- Vitest + React Testing Library
-- 目标覆盖率：80%+
-
-## 相关技能
-
-- `code-review` - 前端代码审查
-- `testing` - 前端测试模式
+- [react.md](references/react.md)
+- [testing.md](references/testing.md)
