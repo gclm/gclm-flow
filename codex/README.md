@@ -47,6 +47,50 @@
 | `quality` | 负责质量把关，统一代码审查和测试策略，避免各领域重复维护同类规则。 | `code-review`、`testing` |
 | `domain` | 承载领域特有知识与栈差异，覆盖文档、数据库、DevOps 以及各语言框架实践。 | `documentation`、`devops`、`database`、`frontend-stack`、`python-stack`、`go-stack`、`java-stack`、`rust-stack` |
 
+## Skill 清单
+
+| Skill | 分层 | 主要用途 | 典型触发场景 |
+| --- | --- | --- | --- |
+| `brainstorming` | `workflow` | 在动手前澄清需求、边界与方案取舍。 | 新功能、方案设计、需求模糊的任务。 |
+| `writing-plans` | `workflow` | 把需求拆成可执行计划与验收步骤。 | 多步骤实现、跨文件变更、需要显式计划。 |
+| `systematic-debugging` | `workflow` | 按证据定位问题，不靠猜测修 bug。 | 线上问题、测试失败、异常行为排查。 |
+| `test-driven-development` | `workflow` | 先建立失败测试，再补实现。 | 新功能、bug 修复、可自动化回归的问题。 |
+| `verification-before-completion` | `workflow` | 在宣称完成前强制补齐验证证据。 | 准备说“已完成 / 已修复 / 可合并”时。 |
+| `writing-skills` | `workflow` | 规范化创建或重构 skills。 | 新增 skill、拆分 references、治理 skill 结构。 |
+| `reviewing-codex-history` | `workflow` | 从 `history.jsonl` 提炼工作流摩擦和经验候选。 | 做历史复盘、找高频请求、识别治理机会。 |
+| `updating-domain-skills` | `workflow` | 把已验证的领域经验回写到对应 skill。 | 真实任务产出稳定经验后。 |
+| `using-git-worktrees` | `orchestration` | 在独立 worktree 中隔离开发或同步工作。 | 避免污染当前工作区、做并行分支工作。 |
+| `executing-plans` | `orchestration` | 严格按现有实施计划逐步落地和验证。 | 用户已给 plan，要求按步骤执行。 |
+| `dispatching-parallel-agents` | `orchestration` | 拆分并行子任务，协调多 agent。 | 任务可天然拆成 2 个以上独立子问题。 |
+| `finishing-a-development-branch` | `orchestration` | 处理收尾、合并、PR 或清理决策。 | 功能已实现，准备进入分支收尾阶段。 |
+| `code-review` | `quality` | 做 bug、风险、回归、测试缺口审查。 | 用户要求 review、审计、验证实现质量。 |
+| `testing` | `quality` | 决定该测什么、测到哪层、如何证明行为。 | 设计测试、补测试、判断验证范围。 |
+| `documentation` | `domain` | 维护 README、AGENTS、文档结构与约定。 | 改文档、补说明、治理文档分层。 |
+| `devops` | `domain` | 处理部署、CI/CD、镜像、发布和运行环境。 | Docker、K8s、GitHub Actions、发布链路。 |
+| `database` | `domain` | 处理 schema、migration、索引和查询风险。 | SQL、SQLite、迁移、数据安全与回滚。 |
+| `frontend-stack` | `domain` | 提供前端栈的项目结构、状态管理和测试差异。 | React/Vue/TSX、前端交互和构建问题。 |
+| `python-stack` | `domain` | 提供 Python 服务/脚本项目的栈级建议。 | FastAPI/Flask、Python 脚本、pytest。 |
+| `go-stack` | `domain` | 提供 Go 项目结构、测试和工程实践差异。 | Go 服务、CLI、`go test`、模块治理。 |
+| `java-stack` | `domain` | 提供 Java/Spring/Quarkus 的栈级注意事项。 | Java 后端、构建、测试和框架约束。 |
+| `rust-stack` | `domain` | 提供 Rust 项目结构、错误处理和测试约束。 | Rust/Axum/Actix、Cargo、Rust 工程问题。 |
+| `gclm-commit` | `domain` | 统一提交前检查、提交信息和 `Commit Ready` 输出。 | 准备提交、需要规范 commit message。 |
+
+## 默认 MCP
+
+| MCP | 主要用途 | 适合场景 | 使用边界 |
+| --- | --- | --- | --- |
+| `chrome-devtools` | 驱动本机 Chrome，做页面调试、元素检查、网络/控制台排查。 | Web 页面联调、UI 验证、浏览器端问题复现。 | 只适合浏览器上下文问题，不替代通用 HTTP 抓包或后端调试。 |
+| `auggie` | 接入 Augment/Auggie 的 MCP 能力，补充外部工作区理解或相关集成。 | 需要使用 Auggie MCP 提供的额外上下文或工作区能力时。 | 依赖外部服务可用性与该 relay 配置，不应作为本地代码搜索的默认替代。 |
+| `exa` | 提供 Exa 的联网搜索 / 检索能力。 | 需要外部资料、最新网页、联网研究时。 | 属于外部检索通道，不替代本地仓库阅读；高时效或高风险事实仍应显式校验来源。 |
+
+### 默认 MCP 使用约定
+
+- 先做本地搜索和代码阅读，再决定是否调用 `auggie` 或 `exa`。
+- `chrome-devtools` 只在需要真实浏览器证据时使用，例如控制台错误、DOM 状态、网络请求和页面行为。
+- `exa` 更适合外部事实补充，`auggie` 更适合补充外部工作区或集成侧能力；两者都不应替代本地代码理解。
+- 通过 MCP 拿到证据后，输出里应说明用了哪个 MCP，以及它解决了什么本地上下文无法直接证明的问题。
+- 增加新的默认 MCP 时，README 需要同时补“用途”和“使用边界”，避免默认能力变成隐性依赖。
+
 ## 日常流程
 
 1. 在当前目录修改配置。

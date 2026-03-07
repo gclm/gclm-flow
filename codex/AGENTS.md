@@ -29,6 +29,22 @@ Gclm-Flow global guidance for Codex.
 
 State clearly whether external information was actually fetched.
 
+## MCP Routing
+
+Use MCP only when it provides evidence that local code search cannot provide.
+
+Priority:
+1. Read local code and docs first.
+2. Use `chrome-devtools` only for real browser-side evidence:
+   DOM state, styles, console errors, network requests, and runtime UI behavior.
+3. Use `exa` only for external web research or fresh public facts.
+4. Use `auggie` only when Auggie-specific external workspace or integration context is needed.
+
+Rules:
+- Do not use MCP as a substitute for local repository reading.
+- Do not call `exa` or `auggie` when local code inspection is sufficient.
+- When MCP is used, state which MCP was used and why.
+
 ## Execution Guardrails
 
 - Prefer minimal sufficient changes.
