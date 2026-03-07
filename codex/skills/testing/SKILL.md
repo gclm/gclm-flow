@@ -1,62 +1,75 @@
 ---
 name: testing
-description: |
-  测试技能。当用户要求测试、test、unit test、pytest、jest、vitest、go test 时自动触发。
-  包含：(1) 单元测试 (2) 集成测试 (3) E2E 测试 (4) 测试覆盖率
-metadata:
-  author: gclm-flow
-  version: "2.0.0"
-  platforms:
-    - claude-code
-    - codex-cli
-  tags:
-    - test
-    - tdd
-    - coverage
+description: Use when designing, writing, running, or reviewing automated tests, or when deciding what level of tests is needed for a code or config change.
 ---
 
 # 测试
 
-## 测试原则
+这个 skill 负责测试策略、测试分层、测试执行和覆盖判断。它不替代 `test-driven-development`；TDD 负责“先写失败测试再写实现”，这里负责“该测什么、怎么测、测到什么程度”。
 
-### FIRST 原则
-- **F**ast：测试要快
-- **I**ndependent：测试要独立
-- **R**epeatable：测试可重复
-- **S**elf-validating：自动验证
-- **T**imely：及时编写
+## 核心规则
 
-### TDD 工作流
+- 先选最小但足够证明行为的测试层级，不默认上 E2E
+- 新行为、bug 修复、危险重构，至少补一条能防回归的自动化验证
+- 测试要验证行为，不要只验证实现细节
+- 宣称“测试通过”前，必须跑对应命令并看结果
 
-```
-RED     → 先写失败的测试
-GREEN   → 写最少代码通过测试
-REFACTOR → 重构代码
-REPEAT  → 继续下一个需求
-```
+## 选择哪种测试
 
-## 测试类型
+### 单元测试
 
-| 类型 | 比例 | 用途 |
-|------|------|------|
-| 单元测试 | 70% | 测试单个函数/方法 |
-| 集成测试 | 20% | 测试模块间交互 |
-| E2E 测试 | 10% | 测试关键流程 |
+优先用于：
+- 纯函数、规则判断、边界条件
+- 错误处理与分支覆盖
+- 快速回归验证
 
-## 覆盖率目标
+### 集成测试
 
-| 代码类型 | 目标 |
-|---------|------|
-| 核心业务逻辑 | 90%+ |
-| 公共 API | 80%+ |
-| 一般代码 | 70%+ |
+优先用于：
+- 模块交互、数据库访问、外部接口适配层
+- 配置装配、协议编解码、文件系统交互
 
-## 语言特定
+### 端到端测试
 
-| 语言 | 框架 | 参考 |
-|------|------|------|
-| Java | JUnit 5 + Mockito | `java-stack/references/testing.md` |
-| Python | pytest | `python-stack/references/testing.md` |
-| Go | testing (内置) | `go-stack/references/testing.md` |
-| Rust | cargo test | `rust-stack/references/testing.md` |
-| 前端 | Vitest | `frontend-stack/references/testing.md` |
+只用于：
+- 关键用户路径
+- 高价值主流程
+- 只有全链路才能暴露的问题
+
+## 测试顺序
+
+1. 先定义要证明的行为和失败条件。
+2. 选择最小测试层级。
+3. 写测试数据和断言，优先验证对外行为。
+4. 跑相关测试。
+5. 如涉及共享模块或危险路径，再扩大验证范围。
+
+## 覆盖判断
+
+- 核心业务逻辑：优先覆盖正常路径、失败路径、边界条件
+- bug 修复：必须有一条能复现原问题的回归测试，或有明确理由说明无法自动化
+- 配置/脚本改动：至少提供可重复执行的验证步骤
+- UI/交互改动：除自动化测试外，必要时补实际预览或截图验证
+
+## 常见误区
+
+- 只有 happy path，没有失败路径
+- 断言太弱，只断言“函数被调用”而不是结果正确
+- 用大而慢的 E2E 替代本该写的单元/集成测试
+- 改了公共能力，却只跑了局部测试
+- 把日志输出当成测试通过证据
+
+## 语言入口
+
+- Java：`java-stack/references/testing.md`
+- Python：`python-stack/references/testing.md`
+- Go：`go-stack/references/testing.md`
+- Rust：`rust-stack/references/testing.md`
+- Frontend：`frontend-stack/references/testing.md`
+
+## 联动技能
+
+- `test-driven-development`
+- `systematic-debugging`
+- `verification-before-completion`
+- `code-review`

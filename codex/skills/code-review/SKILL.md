@@ -1,11 +1,11 @@
 ---
 name: code-review
-description: Use when reviewing code changes, pull requests, regressions, security concerns, implementation quality, or audit feedback. Trigger on review, verify, audit, 检查代码, 代码审查, 安全检查, 性能检查, PR review.
+description: Use when reviewing code changes, pull requests, regressions, security concerns, implementation quality, audit feedback, or when preparing a focused review of recent changes.
 ---
 
 # 代码审查
 
-像资深工程师一样做结构化审查，先给出问题，再给总结。审查与处理审查反馈统一走这个 skill。
+像资深工程师一样做结构化审查，先给出问题，再给总结。审查、发起复审、处理审查反馈统一走这个 skill。
 
 ## 核心规则
 
@@ -15,7 +15,9 @@ description: Use when reviewing code changes, pull requests, regressions, securi
 - 发现高风险结论时，必须指出触发条件、影响范围、复现线索和最小修复方向。
 - 收到 reviewer 反馈时，先验证反馈是否成立，再决定修复、澄清或反驳。
 
-## 审查顺序
+## 使用场景
+
+### 1. 审查代码变更
 
 1. 明确变更范围：`git status`、`git diff --stat`、关键文件 diff。
 2. 理解意图：需求、计划、设计文档、现有约定、相关 tests。
@@ -24,6 +26,21 @@ description: Use when reviewing code changes, pull requests, regressions, securi
 5. 输出报告：先列 findings，再补充风险、假设、测试缺口和变更概览。
 
 当 diff 里出现删除旧代码、移除配置、废弃接口、迁移脚本时，额外执行 `removal-plan` 检查。
+
+### 2. 发起复审
+
+在任务完成、合并前、或高风险重构后，先准备这几项：
+- review 范围：`git diff --stat`、关键文件、测试变更
+- 改动目标和非目标
+- 希望 reviewer 重点关注的风险面：安全、回归、并发、性能、兼容性
+- 对比基线：从哪个 commit/分支改到现在
+
+### 3. 处理审查反馈
+
+1. 先完整读完反馈，不表演式认同。
+2. 回到代码、需求、测试里确认反馈是否成立。
+3. 成立就修复；不明确就提澄清问题；不成立就给出技术理由。
+4. 多条反馈先按阻塞级别排序，逐条处理，不要半懂半改。
 
 ## 重点检查项
 
@@ -75,13 +92,6 @@ Change Summary
 - 简述审查范围与主要改动
 ```
 
-## 收到审查反馈时
-
-1. 先完整读完反馈，不表演式认同。
-2. 回到代码、需求、测试里确认反馈是否成立。
-3. 成立就修复；不明确就提澄清问题；不成立就给出技术理由。
-4. 多条反馈先按阻塞级别排序，逐条处理，不要半懂半改。
-
 ## 严重级别
 
 - `P0`：会导致数据破坏、权限绕过、严重安全事故、生产不可用
@@ -97,6 +107,6 @@ Change Summary
 
 ## 联动技能
 
-- `requesting-code-review`：在实现后发起复审
-- `verification-before-completion`：宣称完成前做证据验证
-- `systematic-debugging`：发现问题后先追根因
+- `testing`
+- `verification-before-completion`
+- `systematic-debugging`

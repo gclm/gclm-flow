@@ -68,4 +68,4 @@ description: Use when implementation appears complete, verification is done, and
 
 - `verification-before-completion`
 - `using-git-worktrees`
-- `requesting-code-review`
+- `code-review`
