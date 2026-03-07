@@ -73,6 +73,12 @@ for file in "$SRC_DIR"/hooks/*.py; do
 done
 report_extra_children "hooks"
 
+for file in "$SRC_DIR"/bin/*; do
+  [[ -f "$file" ]] || continue
+  compare_file "bin/$(basename "$file")"
+done
+report_extra_children "bin"
+
 for dir in "$SRC_DIR"/skills/*; do
   [[ -d "$dir" ]] || continue
   compare_dir "skills/$(basename "$dir")"

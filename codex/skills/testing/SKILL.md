@@ -61,6 +61,7 @@ description: Use when designing, writing, running, or reviewing automated tests,
 
 ## 语言入口
 
+- 测试层级选择：[test-level-selection.md](references/test-level-selection.md)
 - Java：`java-stack/references/testing.md`
 - Python：`python-stack/references/testing.md`
 - Go：`go-stack/references/testing.md`

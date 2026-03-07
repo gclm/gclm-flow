@@ -6,7 +6,7 @@ SRC_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 DST_DIR="$HOME/.codex"
 BACKUP_DIR="$DST_DIR/backups/codex-config-$(date +%Y%m%d-%H%M%S)"
 
-mkdir -p "$DST_DIR/agents" "$DST_DIR/hooks" "$DST_DIR/skills" "$BACKUP_DIR"
+mkdir -p "$DST_DIR/agents" "$DST_DIR/hooks" "$DST_DIR/skills" "$DST_DIR/bin" "$BACKUP_DIR"
 
 backup_if_exists() {
   local rel="$1"
@@ -76,6 +76,14 @@ done
 prune_unmanaged_children "hooks"
 for file in "$SRC_DIR"/hooks/*.py; do
   rel="hooks/$(basename "$file")"
+  copy_managed_file "$rel"
+  chmod +x "$DST_DIR/$rel"
+done
+
+prune_unmanaged_children "bin"
+for file in "$SRC_DIR"/bin/*; do
+  [[ -f "$file" ]] || continue
+  rel="bin/$(basename "$file")"
   copy_managed_file "$rel"
   chmod +x "$DST_DIR/$rel"
 done

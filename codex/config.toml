@@ -8,7 +8,10 @@ model_verbosity = "medium"
 profile = "fast"
 
 [history]
-persistence = "none"
+persistence = "save-all"
+
+[features]
+multi_agent = true
 
 [model_providers.local]
 name = "local"
@@ -82,6 +85,14 @@ timeout = 5
 
 [hooks.pre_tool_use.matcher]
 matcher = "shell|exec_command|write|edit|multi_edit|apply_patch"
+
+[[hooks.pre_tool_use]]
+name = "skill-drift-guard"
+command = "python3 \"$HOME/.codex/hooks/pre_tool_skill_drift_guard.py\""
+timeout = 5
+
+[hooks.pre_tool_use.matcher]
+matcher = "shell|exec_command"
 
 [[hooks.pre_tool_use]]
 name = "tmux-advice"

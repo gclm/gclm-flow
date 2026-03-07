@@ -2,6 +2,11 @@
 
 用于判断 skill 内容应该留在 `SKILL.md`、拆到 `references/`，还是做成 `scripts/`。
 
+## 何时查看
+
+- 正在新增或重构 skill，但不确定内容该放在哪一层
+- `SKILL.md` 已经开始变长，想判断是否该拆分
+
 ## 保留在 `SKILL.md`
 
 - 触发条件

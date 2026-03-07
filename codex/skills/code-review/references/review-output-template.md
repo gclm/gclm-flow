@@ -2,6 +2,11 @@
 
 用于统一 findings-first 风格的 review 输出。
 
+## 何时查看
+
+- 需要输出标准化 review 结果
+- 需要把 findings、风险和总结按固定顺序整理出来
+
 ## 模板
 
 ```markdown
