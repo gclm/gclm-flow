@@ -71,7 +71,7 @@ Good fits:
 - investigator for context gathering
 - builder for implementation
 - reviewer for verification
-- recorder and remember for low-frequency documentation or knowledge capture
+- recorder for low-frequency documentation or knowledge capture
 
 Avoid parallelism when tasks share too much mutable state.
 

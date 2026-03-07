@@ -2,6 +2,7 @@
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 DOC_EXTS = {".md", ".mdx", ".rst", ".txt"}
@@ -16,6 +17,14 @@ HIGH_RISK_PATH_PARTS = (
     "cli",
 )
 HIGH_RISK_EXTS = {".yaml", ".yml", ".json", ".toml", ".proto"}
+DEVOPS_PATH_MARKERS = (
+    "dockerfile",
+    ".github/workflows",
+    "k8s/",
+    "helm/",
+    "terraform/",
+    "deploy/",
+)
 
 
 def run(cmd: list[str], cwd: str) -> str:
@@ -57,6 +66,26 @@ def is_high_risk_doc_sensitive(rel: str) -> bool:
     return Path(rel).suffix.lower() in HIGH_RISK_EXTS
 
 
+def detect_domain(cwd: str, files: list[str]) -> str | None:
+    root = Path(run(["git", "rev-parse", "--show-toplevel"], cwd) or cwd)
+    lowered = [f.lower() for f in files]
+    if any(marker in f for f in lowered for marker in DEVOPS_PATH_MARKERS):
+        return "devops"
+    if any(Path(f).name.lower() == "dockerfile" for f in files):
+        return "devops"
+    if (root / "go.mod").exists() and any(Path(f).suffix == ".go" for f in files):
+        return "go-stack"
+    if (root / "Cargo.toml").exists() and any(Path(f).suffix == ".rs" for f in files):
+        return "rust-stack"
+    if ((root / "pyproject.toml").exists() or (root / "requirements.txt").exists()) and any(Path(f).suffix == ".py" for f in files):
+        return "python-stack"
+    if ((root / "pom.xml").exists() or (root / "build.gradle").exists() or (root / "build.gradle.kts").exists()) and any(Path(f).suffix in {".java", ".kt"} for f in files):
+        return "java-stack"
+    if (root / "package.json").exists() and any(Path(f).suffix in {".ts", ".tsx", ".js", ".jsx"} for f in files):
+        return "frontend-stack"
+    return None
+
+
 def main() -> None:
     payload = json.load(sys.stdin)
     cwd = payload.get("cwd") or os.getcwd()
@@ -74,9 +103,13 @@ def main() -> None:
             reminders.append(
                 "Documentation drift check: code/config/runtime-facing files changed but no docs changed. Review README/docs/llmdoc if behavior, config, commands, hooks, or API changed."
             )
+        domain = detect_domain(cwd, files)
+        if domain:
+            reminders.append(
+                f"Domain knowledge check: this task touched {domain}. If you learned a reusable pattern or pitfall, consider updating-domain-skills before wrapping up."
+            )
     print(json.dumps({"additionalContext": " ".join(reminders)}))
 
 
 if __name__ == "__main__":
-    import sys
     main()
