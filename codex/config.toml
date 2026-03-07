@@ -1,0 +1,123 @@
+model_provider = "local"
+model = "gpt-5.4"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+model_reasoning_effort = "medium"
+plan_mode_reasoning_effort = "high"
+model_verbosity = "medium"
+profile = "fast"
+
+[history]
+persistence = "none"
+
+[model_providers.local]
+name = "local"
+wire_api = "responses"
+base_url = "http://localhost:8319/v1"
+requires_openai_auth = true
+
+[profiles.fast]
+model = "gpt-5.4"
+model_provider = "local"
+model_reasoning_effort = "medium"
+model_verbosity = "medium"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[profiles.deep]
+model = "gpt-5.4"
+model_provider = "local"
+model_reasoning_effort = "high"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[profiles.review]
+model = "gpt-5.4"
+model_provider = "local"
+model_reasoning_effort = "high"
+model_verbosity = "high"
+approval_policy = "on-request"
+sandbox_mode = "workspace-write"
+
+[agents]
+max_threads = 24
+max_depth = 4
+job_max_runtime_seconds = 1800
+
+[agents.planner]
+description = "任务规划专家，负责理解需求、分解任务、制定执行计划"
+config_file = "./agents/planner.toml"
+
+[agents.investigator]
+description = "上下文调研员，负责代码理解、技术调研与问题诊断"
+config_file = "./agents/investigator.toml"
+
+[agents.builder]
+description = "代码执行者，负责实现、修改、重构与测试"
+config_file = "./agents/builder.toml"
+
+[agents.reviewer]
+description = "质量守护者，负责审查、验证与风险识别"
+config_file = "./agents/reviewer.toml"
+
+[agents.recorder]
+description = "文档记录员，负责计划、文档与决策沉淀"
+config_file = "./agents/recorder.toml"
+
+[agents.remember]
+description = "记忆管理员，负责模式提取与错误沉淀"
+config_file = "./agents/remember.toml"
+
+[hooks]
+
+[[hooks.session_start]]
+name = "session-start-context"
+command = "python3 \"$HOME/.codex/hooks/session_start_context.py\""
+
+[[hooks.pre_tool_use]]
+name = "risk-guard"
+command = "python3 \"$HOME/.codex/hooks/pre_tool_risk_guard.py\""
+timeout = 5
+
+[hooks.pre_tool_use.matcher]
+matcher = "shell|exec_command|write|edit|multi_edit|apply_patch"
+
+[[hooks.pre_tool_use]]
+name = "tmux-advice"
+command = "python3 \"$HOME/.codex/hooks/pre_tool_tmux_advice.py\""
+timeout = 5
+
+[hooks.pre_tool_use.matcher]
+matcher = "shell|exec_command"
+
+[[hooks.post_tool_use]]
+name = "git-push-hint"
+command = "python3 \"$HOME/.codex/hooks/post_tool_git_push_hint.py\""
+timeout = 5
+
+[hooks.post_tool_use.matcher]
+matcher = "shell|exec_command"
+
+[[hooks.stop]]
+name = "stop-self-check"
+command = "python3 \"$HOME/.codex/hooks/stop_self_check.py\""
+timeout = 5
+
+[projects."/Users/gclm/Codes/ai/zeroclaw"]
+trust_level = "trusted"
+
+[projects."/Users/gclm/Codes/ai/CLIProxyAPI"]
+trust_level = "trusted"
+
+[projects."/Users/gclm/Codes/ai/LinJun"]
+trust_level = "trusted"
+
+[projects."/Users/gclm/Codes/ai/cc-switch"]
+trust_level = "trusted"
+
+[projects."/Users/gclm/Codes/ai/codex"]
+trust_level = "trusted"
+
+[projects."/Users/gclm/Codes/devops/gclm-flow"]
+trust_level = "trusted"
