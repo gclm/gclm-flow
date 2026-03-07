@@ -30,7 +30,14 @@ Not managed here:
 - `AGENTS.md`: global operating guidance
 - `agents/`: reusable agent role configs
 - `hooks/`: mixed-mode guardrails and reminders
+- `skills/`: layered skill system for workflow, orchestration, and domains
 - `bin/`: sync and diff scripts for publishing to `~/.codex`
+
+## Skill Layers
+
+- `workflow`: `brainstorming`, `writing-plans`, `systematic-debugging`, `test-driven-development`, `verification-before-completion`, `receiving-code-review`, `writing-skills`
+- `orchestration`: `using-git-worktrees`, `executing-plans`, `subagent-driven-development`, `dispatching-parallel-agents`, `requesting-code-review`
+- `domain`: `gclm`, `code-review`, `testing`, `documentation`, `devops`, `database`, and language stack skills
 
 ## Workflow
 
