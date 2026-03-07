@@ -34,7 +34,7 @@
 - `hooks/`：混合式门禁、提醒与审查钩子
 - `skills/`：按工作流、编排层、质量层、领域层划分的 skills 体系
 - `bin/`：将源码配置发布到 `~/.codex` 的同步与校验脚本
-- `bin/analyze-history.py`：读取 `history.jsonl` 并输出复盘报告
+- `bin/analyze-history.py`：读取 `history.jsonl` 并导出结构化复盘事实
 - `bin/lint-skills.py`：skills 结构校验脚本，可单独运行，也会被 hook 调用
 
 ## Skill 分层
@@ -56,7 +56,9 @@
 
 ## 复盘入口
 
-- `python3 ~/.codex/bin/analyze-history.py`：从 `~/.codex/history.jsonl` 生成复盘报告
+- `python3 ~/.codex/bin/analyze-history.py --output /tmp/codex-history.json`：从 `~/.codex/history.jsonl` 导出结构化事实
+- `python3 ~/.codex/bin/analyze-history.py --topic devops --topic-kind domain --topic-samples 12 --format markdown`：对某个主题做定向抽样
+- `reviewing-codex-history`：基于 JSON 结果做候选经验簇命名、分类和路由建议
 - 复盘结论先分流：workflow/config/tooling 改进走全局治理，领域经验再交给 `updating-domain-skills`
 
 ## 维护约定
@@ -103,6 +105,7 @@
 - hooks 保持短小、可测试、以策略约束为主。
 - 初始化检测、文档漂移提醒、风险门禁这类跨领域逻辑应落到 hooks。
 - skill 结构类明显漂移由 hook 调用 `bin/lint-skills.py` 自动拦截。
+- 提交已成为自然下一步时，通过轻量 reminder 主动给出 `Commit Ready`，不要等用户重复口述 commit。
 - provider、model、web 相关配置集中放在主配置和启动脚本，不分散到 skills。
 - 修改 hooks、agents、launchers 后，至少跑一条真实执行链路，例如 `bin/smoke-test-hooks.sh`。
 
@@ -119,6 +122,6 @@
 
 - `bin/serve-local.sh`：用本地稳定参数启动 `codex serve`
 - `bin/github-webhook-local.sh`：用环境变量方式启动 `codex github`
-- `bin/analyze-history.py`：基于 `history.jsonl` 输出复盘报告和改进路由建议
+- `bin/analyze-history.py`：基于 `history.jsonl` 导出可供 skill 和模型继续梳理的结构化事实
 - `bin/lint-skills.py`：检查 skill frontmatter、references 链接和基础结构
 - `bin/smoke-test-hooks.sh`：通过 `codex exec` 跑一轮真实 hook smoke test

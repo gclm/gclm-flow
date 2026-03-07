@@ -21,11 +21,13 @@ description: Use when working on deployment, CI/CD, containers, Kubernetes, Terr
 - CI/CD / GitHub Actions / 发布流水线
 - Terraform / 基础设施变更
 - 运行时配置、Secrets、环境差异
+- 代理分组、服务路由、部署选址
 
 ## 参考资料
 
 - [github-actions-vm-image-ci.md](references/github-actions-vm-image-ci.md)
 - [deployment-checklist.md](references/deployment-checklist.md)
+- [service-routing-and-deployment-patterns.md](references/service-routing-and-deployment-patterns.md)
 
 ## 测试与验证边界
 

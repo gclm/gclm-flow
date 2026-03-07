@@ -13,6 +13,7 @@ description: Use when preparing a Git commit, choosing a commit type and scope, 
 - 提交信息应忠实描述实际变更，不夸大、不混入未完成工作
 - 提交前默认确认测试/验证状态是否与变更匹配
 - 不默认使用 `--amend`、`--no-verify` 或强推相关动作
+- 当验证已完成且提交是自然下一步时，主动给出 `Commit Ready`，不要等用户再次口述“commit”
 
 ## 提交顺序
 
@@ -22,6 +23,7 @@ description: Use when preparing a Git commit, choosing a commit type and scope, 
 4. 生成标题：`<type>(<scope>): <中文描述>`。
 5. 如有必要，再补 1-3 条正文说明关键变更。
 6. 提交前确认验证状态是否足够。
+7. 如果已完成验证但尚未执行提交，输出 `Commit Ready` 建议块。
 
 ## 什么时候拆分提交
 
@@ -38,6 +40,7 @@ description: Use when preparing a Git commit, choosing a commit type and scope, 
 详细参考：
 - [commit-type-guide.md](references/commit-type-guide.md)
 - [commit-message-checklist.md](references/commit-message-checklist.md)
+- [commit-ready-output.md](references/commit-ready-output.md)
 
 ## 联动技能
 

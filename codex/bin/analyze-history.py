@@ -20,13 +20,13 @@ WORKFLOW_TOPICS = {
 }
 
 DOMAIN_TOPICS = {
-    "devops": [r"docker", r"k8s", r"kubernetes", r"terraform", r"ci/cd", r"github actions", r"deploy"],
+    "devops": [r"docker", r"k8s", r"kubernetes", r"terraform", r"ci/cd", r"github actions", r"deploy", r"aliyun", r"cloudflare", r"vercel"],
     "frontend-stack": [r"react", r"vue", r"frontend", r"tsx", r"vitest", r"playwright"],
     "python-stack": [r"python", r"fastapi", r"flask", r"pytest"],
     "go-stack": [r"\bgo\b", r"gin", r"echo", r"go test"],
     "java-stack": [r"java", r"spring", r"quarkus", r"junit"],
     "rust-stack": [r"rust", r"axum", r"actix", r"cargo test"],
-    "database": [r"sql", r"postgres", r"mysql", r"redis", r"mongo", r"migration", r"schema"],
+    "database": [r"sql", r"sqlite", r"postgres", r"mysql", r"redis", r"mongo", r"migration", r"schema", r"query"],
 }
 
 IGNORE_REPEATED_PROMPTS = {
@@ -36,6 +36,35 @@ IGNORE_REPEATED_PROMPTS = {
     "你是谁",
     "restart",
 }
+
+DOMAIN_SAMPLE_NOISE_PATTERNS = [
+    r"history\.jsonl",
+    r"reviewing-codex-history",
+    r"updating-domain-skills",
+    r"topic counts",
+    r"candidate clusters",
+    r"output-template",
+    r"agents/remember\.toml",
+    r"entry-template",
+]
+
+DOMAIN_META_GOVERNANCE_PATTERNS = [
+    r"\bskill\b",
+    r"\bskills\b",
+    r"SKILL\.md",
+    r"references?",
+    r"薄入口",
+    r"模板式",
+    r"模板",
+    r"维护约定",
+    r"全量 skills",
+    r"references 内容风格",
+    r"skill 结构",
+    r"轻量 hook",
+    r"reviewing-codex-history",
+    r"updating-domain-skills",
+    r"history\.jsonl",
+]
 
 
 @dataclass
@@ -48,7 +77,7 @@ class Entry:
 def load_entries(path: Path) -> list[Entry]:
     entries = []
     with path.open() as fh:
-        for lineno, line in enumerate(fh, start=1):
+        for line in fh:
             line = line.strip()
             if not line:
                 continue
@@ -58,11 +87,10 @@ def load_entries(path: Path) -> list[Entry]:
 
 
 def normalize_text(text: str) -> str:
-    text = re.sub(r"\s+", " ", text.strip())
-    return text
+    return re.sub(r"\s+", " ", text.strip())
 
 
-def short(text: str, limit: int = 88) -> str:
+def short(text: str, limit: int = 120) -> str:
     text = normalize_text(text)
     if len(text) <= limit:
         return text
@@ -70,153 +98,276 @@ def short(text: str, limit: int = 88) -> str:
 
 
 def match_topics(text: str, mapping: dict[str, list[str]]) -> set[str]:
-    found = set()
     lowered = text.lower()
+    found = set()
     for topic, patterns in mapping.items():
         if any(re.search(pattern, lowered, flags=re.IGNORECASE) for pattern in patterns):
             found.add(topic)
     return found
 
 
-def summarize(entries: list[Entry], top_n: int, recent_n: int) -> str:
+def session_summary(entries: list[Entry], top_n: int) -> list[dict[str, object]]:
     sessions: dict[str, list[Entry]] = defaultdict(list)
-    exact_prompt_counter = Counter()
-    workflow_counter = Counter()
-    domain_counter = Counter()
-    day_counter = Counter()
-
     for entry in entries:
         sessions[entry.session_id].append(entry)
-        exact_prompt_counter[normalize_text(entry.text)] += 1
-        workflow_counter.update(match_topics(entry.text, WORKFLOW_TOPICS))
-        domain_counter.update(match_topics(entry.text, DOMAIN_TOPICS))
-        day_counter[datetime.fromtimestamp(entry.ts, tz=timezone.utc).date().isoformat()] += 1
-
-    session_stats = []
+    summary = []
     for session_id, items in sessions.items():
         items.sort(key=lambda item: item.ts)
-        session_stats.append(
+        summary.append(
             {
                 "session_id": session_id,
-                "messages": len(items),
-                "start": items[0].ts,
-                "end": items[-1].ts,
+                "message_count": len(items),
+                "start_ts": items[0].ts,
+                "end_ts": items[-1].ts,
                 "duration_minutes": round((items[-1].ts - items[0].ts) / 60, 1),
-                "first_prompt": short(items[0].text, 70),
+                "first_prompt": short(items[0].text, 90),
             }
         )
-    session_stats.sort(key=lambda item: (-item["messages"], -item["end"]))
+    summary.sort(key=lambda item: (-int(item["message_count"]), -int(item["end_ts"])))
+    return summary[:top_n]
 
-    repeated_prompts = [
-        (prompt, count)
-        for prompt, count in exact_prompt_counter.most_common()
-        if count >= 2 and prompt and prompt not in IGNORE_REPEATED_PROMPTS
-    ][:top_n]
 
+def repeated_prompts(entries: list[Entry], top_n: int) -> list[dict[str, object]]:
+    counter = Counter(normalize_text(entry.text) for entry in entries)
+    prompts = []
+    for prompt, count in counter.most_common():
+        if count < 2 or not prompt or prompt in IGNORE_REPEATED_PROMPTS:
+            continue
+        prompts.append({"text": short(prompt, 160), "count": count})
+        if len(prompts) >= top_n:
+            break
+    return prompts
+
+
+def is_domain_meta_discussion(text: str) -> bool:
+    lowered = text.lower()
+    if not any(topic in lowered for topic in DOMAIN_TOPICS):
+        return False
+    return any(re.search(pattern, lowered, flags=re.IGNORECASE) for pattern in DOMAIN_META_GOVERNANCE_PATTERNS)
+
+
+def is_domain_sample_noise(text: str) -> bool:
+    lowered = text.lower()
+    if is_domain_meta_discussion(lowered):
+        return True
+    return any(re.search(pattern, lowered, flags=re.IGNORECASE) for pattern in DOMAIN_SAMPLE_NOISE_PATTERNS)
+
+
+def topic_counts(
+    entries: list[Entry],
+    mapping: dict[str, list[str]],
+    *,
+    exclude_domain_meta: bool = False,
+) -> Counter:
+    counter = Counter()
+    for entry in entries:
+        if exclude_domain_meta and is_domain_sample_noise(entry.text):
+            continue
+        counter.update(match_topics(entry.text, mapping))
+    return counter
+
+
+def topic_samples(
+    entries: list[Entry],
+    mapping: dict[str, list[str]],
+    sample_per_topic: int,
+    *,
+    topic_filter: str | None = None,
+    exclude_domain_meta: bool = False,
+) -> dict[str, list[dict[str, object]]]:
+    topics = [topic_filter] if topic_filter else list(mapping)
+    by_topic: dict[str, list[dict[str, object]]] = {}
+    for topic in topics:
+        if topic not in mapping:
+            continue
+        matched = [entry for entry in entries if topic in match_topics(entry.text, mapping)]
+        if not matched:
+            continue
+        samples = []
+        seen = set()
+        for entry in sorted(matched, key=lambda item: item.ts, reverse=True):
+            if exclude_domain_meta and is_domain_sample_noise(entry.text):
+                continue
+            snippet = short(entry.text, 180)
+            if snippet in seen:
+                continue
+            seen.add(snippet)
+            samples.append(
+                {
+                    "session_id": entry.session_id,
+                    "ts": entry.ts,
+                    "text": snippet,
+                }
+            )
+            if len(samples) >= sample_per_topic:
+                break
+        by_topic[topic] = samples
+    return by_topic
+
+
+def recent_focus(entries: list[Entry], recent_n: int) -> dict[str, dict[str, int]]:
     recent_entries = entries[-recent_n:]
-    recent_workflow = Counter()
-    recent_domain = Counter()
-    for entry in recent_entries:
-        recent_workflow.update(match_topics(entry.text, WORKFLOW_TOPICS))
-        recent_domain.update(match_topics(entry.text, DOMAIN_TOPICS))
+    workflow = topic_counts(recent_entries, WORKFLOW_TOPICS)
+    domain = topic_counts(recent_entries, DOMAIN_TOPICS, exclude_domain_meta=True)
+    return {
+        "window_size": len(recent_entries),
+        "workflow": dict(workflow.most_common()),
+        "domain": dict(domain.most_common()),
+    }
 
-    lines = []
-    lines.append("# Codex History Retrospective")
-    lines.append("")
-    lines.append("## Overview")
-    lines.append(f"- Entries: {len(entries)}")
-    lines.append(f"- Sessions: {len(sessions)}")
-    if entries:
-        start = datetime.fromtimestamp(entries[0].ts, tz=timezone.utc).isoformat()
-        end = datetime.fromtimestamp(entries[-1].ts, tz=timezone.utc).isoformat()
-        lines.append(f"- Range: {start} -> {end}")
+
+def resolve_topic_mapping(topic: str, topic_kind: str) -> tuple[str, dict[str, list[str]]]:
+    if topic_kind == "workflow":
+        if topic not in WORKFLOW_TOPICS:
+            raise ValueError(f"Unknown workflow topic: {topic}")
+        return topic_kind, WORKFLOW_TOPICS
+    if topic_kind == "domain":
+        if topic not in DOMAIN_TOPICS:
+            raise ValueError(f"Unknown domain topic: {topic}")
+        return topic_kind, DOMAIN_TOPICS
+    if topic in DOMAIN_TOPICS:
+        return "domain", DOMAIN_TOPICS
+    if topic in WORKFLOW_TOPICS:
+        return "workflow", WORKFLOW_TOPICS
+    raise ValueError(f"Unknown topic: {topic}")
+
+
+def focused_topic_report(entries: list[Entry], topic: str, topic_kind: str, sample_limit: int) -> dict[str, object]:
+    resolved_kind, mapping = resolve_topic_mapping(topic, topic_kind)
+    exclude_domain_meta = resolved_kind == "domain"
+    counts = topic_counts(entries, mapping, exclude_domain_meta=exclude_domain_meta)
+    return {
+        "kind": resolved_kind,
+        "topic": topic,
+        "count": counts.get(topic, 0),
+        "samples": topic_samples(
+            entries,
+            mapping,
+            sample_per_topic=sample_limit,
+            topic_filter=topic,
+            exclude_domain_meta=exclude_domain_meta,
+        ).get(topic, []),
+    }
+
+
+def build_report(
+    entries: list[Entry],
+    top_n: int,
+    recent_n: int,
+    sample_per_topic: int,
+    *,
+    topic: str | None = None,
+    topic_kind: str = "auto",
+    topic_samples_limit: int = 12,
+) -> dict[str, object]:
+    workflow = topic_counts(entries, WORKFLOW_TOPICS)
+    domain = topic_counts(entries, DOMAIN_TOPICS, exclude_domain_meta=True)
+    report = {
+        "metadata": {
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "source": "history.jsonl",
+            "entries": len(entries),
+            "sessions": len({entry.session_id for entry in entries}),
+            "range": {
+                "start_ts": entries[0].ts if entries else None,
+                "end_ts": entries[-1].ts if entries else None,
+                "start_iso": datetime.fromtimestamp(entries[0].ts, tz=timezone.utc).isoformat() if entries else None,
+                "end_iso": datetime.fromtimestamp(entries[-1].ts, tz=timezone.utc).isoformat() if entries else None,
+            },
+        },
+        "top_sessions": session_summary(entries, top_n=top_n),
+        "repeated_prompts": repeated_prompts(entries, top_n=top_n),
+        "workflow_topics": {
+            "counts": dict(workflow.most_common()),
+            "samples": topic_samples(entries, WORKFLOW_TOPICS, sample_per_topic=sample_per_topic),
+        },
+        "domain_topics": {
+            "counts": dict(domain.most_common()),
+            "samples": topic_samples(entries, DOMAIN_TOPICS, sample_per_topic=sample_per_topic, exclude_domain_meta=True),
+        },
+        "recent_focus": recent_focus(entries, recent_n=recent_n),
+    }
+    if topic:
+        report["focused_topic"] = focused_topic_report(entries, topic, topic_kind, topic_samples_limit)
+    return report
+
+
+def render_markdown(report: dict[str, object]) -> str:
+    meta = report["metadata"]
+    lines = ["# Codex History Facts", "", "## Overview"]
+    lines.append(f"- Entries: {meta['entries']}")
+    lines.append(f"- Sessions: {meta['sessions']}")
+    lines.append(f"- Range: {meta['range']['start_iso']} -> {meta['range']['end_iso']}")
     lines.append("")
     lines.append("## Top Sessions")
-    for item in session_stats[:top_n]:
+    for item in report["top_sessions"]:
         lines.append(
-            f"- {item['session_id']}: {item['messages']} messages, {item['duration_minutes']} min, first prompt: {item['first_prompt']}"
+            f"- {item['session_id']}: {item['message_count']} messages, {item['duration_minutes']} min, first prompt: {item['first_prompt']}"
         )
     lines.append("")
     lines.append("## Repeated Prompts")
-    if repeated_prompts:
-        for prompt, count in repeated_prompts:
-            lines.append(f"- x{count}: {short(prompt, 120)}")
+    if report["repeated_prompts"]:
+        for item in report["repeated_prompts"]:
+            lines.append(f"- x{item['count']}: {item['text']}")
     else:
         lines.append("- No repeated prompts above threshold")
     lines.append("")
-    lines.append("## Workflow Topic Counts")
-    for topic, count in workflow_counter.most_common():
+    lines.append("## Workflow Topics")
+    for topic, count in report["workflow_topics"]["counts"].items():
         lines.append(f"- {topic}: {count}")
     lines.append("")
-    lines.append("## Domain Topic Counts")
-    if domain_counter:
-        for topic, count in domain_counter.most_common():
-            lines.append(f"- {topic}: {count}")
-    else:
-        lines.append("- No domain-heavy signals detected")
+    lines.append("## Domain Topics")
+    for topic, count in report["domain_topics"]["counts"].items():
+        lines.append(f"- {topic}: {count}")
     lines.append("")
-    lines.append(f"## Recent Focus (last {len(recent_entries)} entries)")
-    if recent_workflow:
-        lines.append("- Workflow: " + ", ".join(f"{topic}={count}" for topic, count in recent_workflow.most_common()))
-    else:
-        lines.append("- Workflow: none")
-    if recent_domain:
-        lines.append("- Domain: " + ", ".join(f"{topic}={count}" for topic, count in recent_domain.most_common()))
-    else:
-        lines.append("- Domain: none")
-    lines.append("")
-    lines.append("## Suggested Action Routing")
-    workflow_actions = build_workflow_actions(workflow_counter, repeated_prompts)
-    domain_actions = build_domain_actions(domain_counter)
-    if workflow_actions:
-        lines.append("### Workflow / Config")
-        for action in workflow_actions:
-            lines.append(f"- {action}")
-    if domain_actions:
-        lines.append("### Domain Skills")
-        for action in domain_actions:
-            lines.append(f"- {action}")
-    if not workflow_actions and not domain_actions:
-        lines.append("- No strong writeback candidates yet")
+    lines.append("## Recent Focus")
+    lines.append(f"- Window: last {report['recent_focus']['window_size']} entries")
+    lines.append("- Workflow: " + ", ".join(f"{k}={v}" for k, v in report["recent_focus"]["workflow"].items()))
+    lines.append("- Domain: " + ", ".join(f"{k}={v}" for k, v in report["recent_focus"]["domain"].items()))
+    focused = report.get("focused_topic")
+    if focused:
+        lines.append("")
+        lines.append(f"## Focused Topic: {focused['kind']}/{focused['topic']}")
+        lines.append(f"- Count: {focused['count']}")
+        if focused["samples"]:
+            for item in focused["samples"]:
+                lines.append(f"- {item['ts']}: {item['text']}")
+        else:
+            lines.append("- No samples matched after filtering")
     return "\n".join(lines) + "\n"
 
 
-def build_workflow_actions(workflow_counter: Counter, repeated_prompts: list[tuple[str, int]]) -> list[str]:
-    actions = []
-    if workflow_counter["skills"] >= 8:
-        actions.append("`skills` 主题高度集中，优先沉淀到 workflow skills、README、hooks 或发布脚本，而不是直接写入 `updating-domain-skills`。")
-    if workflow_counter["hooks"] >= 4 or workflow_counter["config"] >= 6:
-        actions.append("hooks/config 反复出现，优先把高频判断做成轻量检查、默认配置或启动脚本。")
-    if workflow_counter["review"] >= 4 and workflow_counter["testing"] >= 4:
-        actions.append("review/testing 同时高频，说明质量闭环重要，优先维护全局 `code-review` 与 `testing` skill，而不是在各栈重复。")
-    if repeated_prompts:
-        actions.append("存在重复提问或重复需求，可优先新增脚本、skill 或维护约定，减少再次口述同样指令。")
-    return actions
-
-
-def build_domain_actions(domain_counter: Counter) -> list[str]:
-    actions = []
-    for topic, count in domain_counter.most_common():
-        if count >= 4:
-            actions.append(f"`{topic}` 出现 {count} 次，若这些结论已在真实任务中验证，可通过 `updating-domain-skills` 回写到对应领域 skill。")
-    return actions
-
-
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Analyze Codex history.jsonl and generate a retrospective report.")
+    parser = argparse.ArgumentParser(description="Export structured Codex history facts from history.jsonl.")
     parser.add_argument("--input", default=str(Path.home() / ".codex" / "history.jsonl"))
     parser.add_argument("--top", type=int, default=8)
     parser.add_argument("--recent", type=int, default=40)
+    parser.add_argument("--samples", type=int, default=3)
+    parser.add_argument("--topic")
+    parser.add_argument("--topic-kind", choices=["auto", "workflow", "domain"], default="auto")
+    parser.add_argument("--topic-samples", type=int, default=12)
+    parser.add_argument("--format", choices=["json", "markdown"], default="json")
     parser.add_argument("--output", default="-")
     args = parser.parse_args()
 
-    path = Path(args.input)
-    entries = load_entries(path)
-    report = summarize(entries, top_n=max(args.top, 1), recent_n=max(args.recent, 1))
-    if args.output == "-":
-        print(report, end="")
+    entries = load_entries(Path(args.input))
+    report = build_report(
+        entries,
+        top_n=max(args.top, 1),
+        recent_n=max(args.recent, 1),
+        sample_per_topic=max(args.samples, 1),
+        topic=args.topic,
+        topic_kind=args.topic_kind,
+        topic_samples_limit=max(args.topic_samples, 1),
+    )
+    if args.format == "json":
+        payload = json.dumps(report, ensure_ascii=False, indent=2) + "\n"
     else:
-        Path(args.output).write_text(report)
+        payload = render_markdown(report)
+    if args.output == "-":
+        print(payload, end="")
+    else:
+        Path(args.output).write_text(payload)
     return 0
 
 

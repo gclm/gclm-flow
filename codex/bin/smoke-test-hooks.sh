@@ -23,6 +23,23 @@ run_case shell 'Use the shell tool to run exactly: echo hook_smoke_ok . After th
 grep -q '^SHELL_HOOK_SMOKE_OK$' "$TMPDIR/shell.txt"
 
 run_case risk 'Use the shell tool to run exactly: git reset --hard . After the tool attempt finishes, explain the result in one short sentence.'
-grep -q '风险保护拦截' "$TMPDIR/risk.txt"
+grep -Eq '风险防护钩子拦截|高风险硬重置操作' "$TMPDIR/risk.txt"
+
+HOOK_JSON=$(mktemp "$TMPDIR/commit-ready.XXXXXX.json")
+HOOK_REPO=$(mktemp -d "$TMPDIR/commit-ready-repo.XXXXXX")
+git -C "$HOOK_REPO" init -q
+git -C "$HOOK_REPO" config user.name smoke
+git -C "$HOOK_REPO" config user.email smoke@example.com
+printf 'seed
+' > "$HOOK_REPO/notes.txt"
+git -C "$HOOK_REPO" add notes.txt
+git -C "$HOOK_REPO" commit -qm 'seed'
+printf 'change
+' >> "$HOOK_REPO/notes.txt"
+cat > "$HOOK_JSON" <<JSON
+{"cwd":"$HOOK_REPO","tool_input":{"cmd":"python3 codex/bin/lint-skills.py"},"tool_response":{"exit_code":0,"stdout":"","stderr":""}}
+JSON
+python3 "$HOME/.codex/hooks/post_tool_commit_ready_hint.py" < "$HOOK_JSON" > "$TMPDIR/commit-ready.txt"
+grep -q 'Commit readiness' "$TMPDIR/commit-ready.txt"
 
 echo 'HOOK_SMOKE_TEST_OK'
