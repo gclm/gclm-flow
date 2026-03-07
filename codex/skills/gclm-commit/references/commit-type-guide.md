@@ -1,5 +1,7 @@
 # Commit Type Guide
 
+用于选择 commit type 和 scope。
+
 ## 常用类型
 
 - `feat`: 新功能

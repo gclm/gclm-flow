@@ -1,72 +1,19 @@
-# Gin 最佳实践
+# Gin Notes
 
-## 路由组织
+用于 Gin 项目的结构与工程化提醒。
 
-```go
-func main() {
-    r := gin.Default()
+## 何时查看
 
-    r.GET("/health", healthCheck)
+- 设计 Gin 路由、handler、依赖注入和配置结构
+- code review 中怀疑分层混乱或装配过重
 
-    v1 := r.Group("/api/v1")
-    {
-        users := v1.Group("/users")
-        {
-            users.GET("", listUsers)
-            users.GET("/:id", getUser)
-            users.POST("", createUser)
-            users.DELETE("/:id", deleteUser)
-        }
-    }
+## 重点关注
 
-    r.Run(":8080")
-}
-```
+- 路由组织是否清晰，版本和资源边界是否稳定
+- handler / service / repository 分层是否明确
+- 配置读取和依赖注入是否集中管理
+- 中间件、校验、错误处理是否统一
 
-## 依赖注入
+## 注意事项
 
-```go
-type App struct {
-    db      *gorm.DB
-    router  *gin.Engine
-    handler *handler.UserHandler
-}
-
-func NewApp(cfg *config.Config) (*App, error) {
-    db, err := gorm.Open(postgres.Open(cfg.Database.URL), &gorm.Config{})
-    if err != nil {
-        return nil, err
-    }
-
-    userRepo := repository.NewUserRepository(db)
-    userService := service.NewUserService(userRepo)
-    userHandler := handler.NewUserHandler(userService)
-
-    router := gin.Default()
-    userHandler.RegisterRoutes(router.Group("/api/v1"))
-
-    return &App{db: db, router: router, handler: userHandler}, nil
-}
-```
-
-## 配置管理
-
-```go
-import "github.com/spf13/viper"
-
-type Config struct {
-    Server   ServerConfig
-    Database DatabaseConfig
-}
-
-func Load() (*Config, error) {
-    viper.SetConfigName("config")
-    viper.AddConfigPath(".")
-    if err := viper.ReadInConfig(); err != nil {
-        return nil, err
-    }
-    var config Config
-    viper.Unmarshal(&config)
-    return &config, nil
-}
-```
+- 示例应服务于分层思路，不要为了形式把项目切得过细

@@ -1,20 +1,23 @@
 # Packaging Guide
 
-## 什么时候拆文件
+用于判断 skill 内容应该留在 `SKILL.md`、拆到 `references/`，还是做成 `scripts/`。
 
-保留在 `SKILL.md`：
+## 保留在 `SKILL.md`
+
 - 触发条件
 - 核心步骤
 - 输出要求
 - 红线与边界
 
-拆到 `references/`：
+## 拆到 `references/`
+
 - 长检查清单
 - 大段案例
 - 领域专项指南
 - 输出模板集合
 
-拆到 `scripts/`：
+## 拆到 `scripts/`
+
 - 反复执行的命令序列
 - 模板初始化脚本
 - 自动校验或生成动作

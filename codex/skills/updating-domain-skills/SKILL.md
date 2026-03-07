@@ -13,6 +13,7 @@ description: Use after finishing work in devops or a language stack when you nee
 - 通用流程不要写回领域 skill，留给 `testing`、`code-review`、`writing-skills`
 - 领域 skill 主文档保持薄，详细经验优先写入 `references/`
 - 不写 secrets、账号、机器路径、一次性流水账
+- 如果需要代理协助提炼，优先使用 `agents/remember.toml`
 
 ## 什么时候回写
 
@@ -33,5 +34,6 @@ description: Use after finishing work in devops or a language stack when you nee
 2. 提炼一句触发提示，必要时补到 `SKILL.md`。
 3. 把完整经验写入 `references/*.md`。
 4. 检查链接、命名、适用范围和敏感信息。
+5. 如需更系统地提炼，可调用 `remember` 代理做结构化整理。
 
 详细模板见 [entry-template.md](references/entry-template.md)

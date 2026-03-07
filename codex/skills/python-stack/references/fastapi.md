@@ -1,78 +1,19 @@
-# FastAPI 最佳实践
+# FastAPI Notes
 
-## 路由定义
+用于 FastAPI 项目的路由、依赖注入和服务组织提醒。
 
-```python
-from fastapi import APIRouter, HTTPException, status
-from pydantic import BaseModel
+## 何时查看
 
-router = APIRouter(prefix="/users", tags=["users"])
+- 设计路由、依赖注入、后台任务、仓储结构
+- code review 中怀疑框架使用方式不稳定或过度耦合
 
-class UserCreate(BaseModel):
-    email: str
-    name: str
+## 重点关注
 
-class UserResponse(BaseModel):
-    id: int
-    email: str
-    name: str
+- 路由定义是否清晰、边界是否稳定
+- 依赖注入是否只处理框架层依赖，不把业务逻辑埋进去
+- 后台任务是否真的适合异步脱离主请求
+- repository/service 分层是否清楚
 
-    class Config:
-        from_attributes = True
+## 注意事项
 
-@router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-async def create_user(user_in: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == user_in.email).first():
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered"
-        )
-    user = User(**user_in.model_dump())
-    db.add(user)
-    db.commit()
-    return user
-```
-
-## 后台任务
-
-```python
-from fastapi import BackgroundTasks
-
-def send_email(to: str, subject: str, body: str):
-    pass
-
-@router.post("/users/")
-async def create_user(
-    user_in: UserCreate,
-    background_tasks: BackgroundTasks
-):
-    user = create_user_in_db(user_in)
-    background_tasks.add_task(
-        send_email,
-        to=user.email,
-        subject="Welcome"
-    )
-    return user
-```
-
-## 仓储模式
-
-```python
-from typing import Optional, List
-
-class UserRepository:
-    def __init__(self, db: Session):
-        self.db = db
-
-    def find_by_id(self, id: int) -> Optional[User]:
-        return self.db.query(User).filter(User.id == id).first()
-
-    def find_by_email(self, email: str) -> Optional[User]:
-        return self.db.query(User).filter(User.email == email).first()
-
-    def create(self, user: User) -> User:
-        self.db.add(user)
-        self.db.commit()
-        self.db.refresh(user)
-        return user
-```
+- FastAPI 易写快，但也容易把路由函数写成大一统入口
