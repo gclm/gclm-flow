@@ -56,7 +56,6 @@ description: Use when initializing project docs, updating README or API docs, re
 
 ## 联动技能
 
-- `gclm`
 - `code-review`
 - `testing`
 - `verification-before-completion`
