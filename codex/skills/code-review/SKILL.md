@@ -1,11 +1,11 @@
 ---
 name: code-review
-description: Use when reviewing code changes, pull requests, regressions, security concerns, or implementation quality. Trigger on review, verify, audit, 检查代码, 代码审查, 安全检查, 性能检查, PR review.
+description: Use when reviewing code changes, pull requests, regressions, security concerns, implementation quality, or audit feedback. Trigger on review, verify, audit, 检查代码, 代码审查, 安全检查, 性能检查, PR review.
 ---
 
 # 代码审查
 
-像资深工程师一样做结构化审查，先给出问题，再给总结。
+像资深工程师一样做结构化审查，先给出问题，再给总结。审查与处理审查反馈统一走这个 skill。
 
 ## 核心规则
 
@@ -13,6 +13,7 @@ description: Use when reviewing code changes, pull requests, regressions, securi
 - 输出以 `findings` 为主，按严重级别排序；没有问题时也要明确说明“未发现问题”。
 - 关注行为回归、边界条件、安全、性能、可维护性、测试缺口，不以风格意见淹没关键问题。
 - 发现高风险结论时，必须指出触发条件、影响范围、复现线索和最小修复方向。
+- 收到 reviewer 反馈时，先验证反馈是否成立，再决定修复、澄清或反驳。
 
 ## 审查顺序
 
@@ -32,12 +33,14 @@ description: Use when reviewing code changes, pull requests, regressions, securi
 - 可维护性：命名、职责分离、重复逻辑、隐式耦合、错误处理、可观测性
 - 测试：是否覆盖新行为、失败路径、回归场景；测试是否真验证了需求
 - 删除/弃用：大规模删除、废弃开关、配置迁移、数据迁移是否有依赖核查和回滚路径
+- 反馈处理：评论是否成立、是否与真实代码/需求一致、是否存在更小修复面
 
 详细清单见：
 - [severity-guide.md](references/severity-guide.md)
 - [security-checklist.md](references/security-checklist.md)
 - [performance-checklist.md](references/performance-checklist.md)
 - [removal-plan.md](references/removal-plan.md)
+- [handling-review-feedback.md](references/handling-review-feedback.md)
 - [review-output-template.md](references/review-output-template.md)
 
 ## 输出格式
@@ -72,6 +75,13 @@ Change Summary
 - 简述审查范围与主要改动
 ```
 
+## 收到审查反馈时
+
+1. 先完整读完反馈，不表演式认同。
+2. 回到代码、需求、测试里确认反馈是否成立。
+3. 成立就修复；不明确就提澄清问题；不成立就给出技术理由。
+4. 多条反馈先按阻塞级别排序，逐条处理，不要半懂半改。
+
 ## 严重级别
 
 - `P0`：会导致数据破坏、权限绕过、严重安全事故、生产不可用
@@ -87,7 +97,6 @@ Change Summary
 
 ## 联动技能
 
-- `receiving-code-review`：处理审查反馈
 - `requesting-code-review`：在实现后发起复审
 - `verification-before-completion`：宣称完成前做证据验证
 - `systematic-debugging`：发现问题后先追根因

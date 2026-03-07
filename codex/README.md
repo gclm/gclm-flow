@@ -35,9 +35,10 @@ Not managed here:
 
 ## Skill Layers
 
-- `workflow`: `brainstorming`, `writing-plans`, `systematic-debugging`, `test-driven-development`, `verification-before-completion`, `receiving-code-review`, `writing-skills`
-- `orchestration`: `using-git-worktrees`, `executing-plans`, `subagent-driven-development`, `dispatching-parallel-agents`, `requesting-code-review`
-- `domain`: `gclm`, `code-review`, `testing`, `documentation`, `devops`, `database`, and language stack skills
+- `workflow`: `brainstorming`, `writing-plans`, `systematic-debugging`, `test-driven-development`, `verification-before-completion`, `writing-skills`
+- `orchestration`: `using-git-worktrees`, `executing-plans`, `subagent-driven-development`, `dispatching-parallel-agents`, `finishing-a-development-branch`
+- `quality`: `code-review`, `requesting-code-review`, `testing`
+- `domain`: `gclm`, `documentation`, `devops`, `database`, and language stack skills
 
 ## Workflow
 

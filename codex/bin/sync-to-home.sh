@@ -32,20 +32,55 @@ copy_managed_dir() {
   cp -R "$SRC_DIR/$rel" "$DST_DIR/$rel"
 }
 
+prune_unmanaged_children() {
+  local rel="$1"
+  shift
+  local dst_root="$DST_DIR/$rel"
+  local src_root="$SRC_DIR/$rel"
+  local entry base keep
+
+  mkdir -p "$dst_root"
+
+  for entry in "$dst_root"/*; do
+    [[ -e "$entry" ]] || continue
+    base="$(basename "$entry")"
+    keep=0
+
+    if [[ -e "$src_root/$base" ]]; then
+      keep=1
+    else
+      for preserved in "$@"; do
+        if [[ "$base" == "$preserved" ]]; then
+          keep=1
+          break
+        fi
+      done
+    fi
+
+    if [[ "$keep" -eq 0 ]]; then
+      backup_if_exists "$rel/$base"
+      rm -rf "$dst_root/$base"
+    fi
+  done
+}
+
 copy_managed_file "config.toml"
 copy_managed_file "AGENTS.md"
 
+prune_unmanaged_children "agents"
 for file in "$SRC_DIR"/agents/*.toml; do
   rel="agents/$(basename "$file")"
   copy_managed_file "$rel"
 done
 
+prune_unmanaged_children "hooks"
 for file in "$SRC_DIR"/hooks/*.py; do
   rel="hooks/$(basename "$file")"
   copy_managed_file "$rel"
   chmod +x "$DST_DIR/$rel"
 done
 
+prune_unmanaged_children "skills" ".system"
 for dir in "$SRC_DIR"/skills/*; do
   [[ -d "$dir" ]] || continue
   rel="skills/$(basename "$dir")"
