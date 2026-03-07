@@ -95,6 +95,5 @@ metadata:
 | `code-review` | `/code-review` | 代码审查 |
 | `testing` | `/testing` | 测试 |
 | `documentation` | `/documentation` | 文档 |
-| `memory` | `/memory` | 记忆系统 |
 | `database` | `/database` | 数据库 |
 | `devops` | `/devops` | DevOps |
