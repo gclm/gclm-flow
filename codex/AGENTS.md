@@ -81,6 +81,13 @@ When a workflow is likely to repeat, propose turning it into a reusable skill, t
 
 Do not store secrets, tokens, or machine-specific sensitive data in reusable artifacts.
 
+## Config Maintenance
+
+- Keep `SKILL.md` thin and move long material into `references/`.
+- Let `testing`, `code-review`, and `documentation` own shared process; stack skills should only add stack-specific guidance.
+- Prefer `updating-domain-skills` plus `agents/remember.toml` for durable experience writeback.
+- Hooks should block only high-risk actions; lower-risk cases should stay as reminders or review prompts.
+
 ## Style
 
 - Favor clarity over ceremony.
