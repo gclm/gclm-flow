@@ -10,13 +10,16 @@ profile = "fast"
 [history]
 persistence = "save-all"
 
+[sandbox_workspace_write]
+network_access = true
+
 [features]
 multi_agent = true
 
 [model_providers.local]
 name = "local"
 wire_api = "responses"
-base_url = "http://localhost:8319/v1"
+base_url = "http://127.0.0.1:4000/v1"
 requires_openai_auth = true
 
 [profiles.fast]
@@ -72,19 +75,21 @@ config_file = "./agents/recorder.toml"
 description = "经验回写管理员，负责领域经验提炼与结构化沉淀"
 config_file = "./agents/remember.toml"
 
-[mcp_servers.chrome-devtools]
-command = "npx"
-args = ["-y", "chrome-devtools-mcp@latest", "--auto-connect"]
-
 [mcp_servers.auggie]
 command = "auggie"
 args = ["--mcp", "--mcp-auto-workspace"]
+env_vars = ["AUGMENT_API_TOKEN", "AUGMENT_API_URL"]
 
-[mcp_servers.auggie.env]
-AUGMENT_API_URL = "https://acemcp.heroman.wtf/relay/"
+[mcp_servers.yunxiao]
+command = "yunxiao-mcp"
+args = []
+env_vars = ["YUNXIAO_ACCESS_TOKEN"]
 
 [mcp_servers.exa]
 url = "https://mcp.exa.ai/mcp"
+
+[tui]
+theme = "monokai-extended"
 
 [hooks]
 

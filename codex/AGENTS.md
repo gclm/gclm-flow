@@ -35,10 +35,11 @@ Use MCP only when it provides evidence that local code search cannot provide.
 
 Priority:
 1. Read local code and docs first.
-2. Use `chrome-devtools` only for real browser-side evidence:
+2. Use `agent-browser` only for real browser-side evidence:
    DOM state, styles, console errors, network requests, and runtime UI behavior.
 3. Use `exa` only for external web research or fresh public facts.
 4. Use `auggie` only when Auggie-specific external workspace or integration context is needed.
+5. Use `yunxiao` only for Alibaba Cloud DevOps / 云效 workspace context.
 
 Rules:
 - Do not use MCP as a substitute for local repository reading.
