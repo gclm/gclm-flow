@@ -45,10 +45,28 @@ Slash commands from ECC submodule:
 
 ### Continuous learning
 
-Stop hook automatically reviews each session for reusable patterns and asks whether to record them to:
-1. Global `MEMORY.md` (cross-project patterns)
-2. Project memory (project-specific conventions)
-3. `~/.claude/skills/learned/` (learned skills)
+Powered by `continuous-learning-v2` (ECC). Two-layer architecture:
+
+**Automatic capture** — `observe.sh` is hooked into every PreToolUse/PostToolUse event. All tool calls are written to `~/.claude/homunculus/projects/<hash>/observations.jsonl`, scoped per project to prevent cross-project contamination.
+
+**Deliberate distillation** — Stop hook scans each session for patterns worth explicitly recording and asks in Chinese whether to save to:
+- Project memory (`MEMORY.md`) — project-specific conventions and pitfalls
+- `~/.claude/skills/learned/` — reusable workflows promoted to learned skills
+
+**Manual commands:**
+
+| Command | Purpose |
+|---------|---------|
+| `/learn` | Extract reusable patterns from current session |
+| `/instinct-status` | View accumulated instincts with confidence scores |
+| `/evolve` | Promote high-confidence instincts to skills/commands/agents |
+| `/skill-create` | Generate skills from git history |
+
+**Enabling background observer** (optional, for automated instinct analysis):
+```bash
+# Edit ~/.claude/skills/continuous-learning-v2/config.json
+{ "observer": { "enabled": true, "run_interval_minutes": 5 } }
+```
 
 ### Hooks
 
