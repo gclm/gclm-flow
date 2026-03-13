@@ -76,6 +76,10 @@ Before reporting success:
 - run the most relevant verification command available
 - report gaps if verification is partial
 
+For code work, use the `verification-loop` skill for full pre-PR verification (build / types / lint / tests / security / diff).
+
+For documents and design work (PRD, plans, specs), verify by re-reading the output against the stated requirements before reporting done.
+
 For sensitive paths, add an explicit review or self-check step.
 
 ## Multi-Agent Usage

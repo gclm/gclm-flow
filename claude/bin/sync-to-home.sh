@@ -46,6 +46,22 @@ if [ -d "$SRC/agents" ]; then
   done
 fi
 
+# ECC skills/ -> ~/.claude/skills/ (selected from submodule)
+ECC_SKILLS="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/.agents/skills"
+ECC_SKILL_LIST="eval-harness verification-loop"
+if [ -d "$ECC_SKILLS" ]; then
+  mkdir -p "$DEST/skills"
+  for name in $ECC_SKILL_LIST; do
+    if [ -d "$ECC_SKILLS/$name" ]; then
+      rm -rf "$DEST/skills/$name"
+      cp -r "$ECC_SKILLS/$name" "$DEST/skills/$name"
+      echo "  skills/$name (from ECC)"
+    fi
+  done
+else
+  echo "  [skip] ECC submodule not found for skills"
+fi
+
 # rules/ -> ~/.claude/rules/
 # common + selected stacks from ECC submodule, java + rust from local rules/
 ECC_RULES="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/rules"
