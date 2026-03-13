@@ -46,6 +46,7 @@ description: Use when you already have a written implementation plan and need to
 
 ## 选择规则
 
+- 如果计划中有 2 个以上彼此独立的任务，优先用 `spawn_team` 并行执行（见 `dispatching-parallel-agents`），而非串行逐步推进
 - 如果任务高度耦合，优先模式 A
 - 如果任务规模较大、用户想阶段性确认，优先模式 B
 - 如果你无法明确边界，先小批次推进，不要一次铺满
@@ -53,6 +54,7 @@ description: Use when you already have a written implementation plan and need to
 ## 联动技能
 
 - `writing-plans`
+- `dispatching-parallel-agents`
 - `code-review`
 - `verification-before-completion`
 - `finishing-a-development-branch`

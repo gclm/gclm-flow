@@ -4,13 +4,15 @@ shopt -s nullglob
 
 SRC_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
 DST_DIR="$HOME/.codex"
+AGENTS_DIR="$HOME/.agents"
 BACKUP_DIR="$DST_DIR/backups/codex-config-$(date +%Y%m%d-%H%M%S)"
 
-mkdir -p "$DST_DIR/agents" "$DST_DIR/hooks" "$DST_DIR/skills" "$DST_DIR/bin" "$BACKUP_DIR"
+mkdir -p "$DST_DIR/agents" "$DST_DIR/hooks" "$DST_DIR/bin" "$AGENTS_DIR/skills" "$BACKUP_DIR"
 
 backup_if_exists() {
-  local rel="$1"
-  local dst="$DST_DIR/$rel"
+  local root="$1"
+  local rel="$2"
+  local dst="$root/$rel"
   if [[ -e "$dst" ]]; then
     mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
     cp -R "$dst" "$BACKUP_DIR/$rel"
@@ -19,29 +21,30 @@ backup_if_exists() {
 
 copy_managed_file() {
   local rel="$1"
-  backup_if_exists "$rel"
+  backup_if_exists "$DST_DIR" "$rel"
   mkdir -p "$DST_DIR/$(dirname "$rel")"
   cp "$SRC_DIR/$rel" "$DST_DIR/$rel"
 }
 
 copy_managed_dir() {
-  local rel="$1"
-  backup_if_exists "$rel"
-  rm -rf "$DST_DIR/$rel"
-  mkdir -p "$DST_DIR/$(dirname "$rel")"
-  cp -R "$SRC_DIR/$rel" "$DST_DIR/$rel"
+  local dst_root="$1"
+  local rel="$2"
+  backup_if_exists "$dst_root" "$rel"
+  rm -rf "$dst_root/$rel"
+  mkdir -p "$dst_root/$(dirname "$rel")"
+  cp -R "$SRC_DIR/$rel" "$dst_root/$rel"
 }
 
 prune_unmanaged_children() {
-  local rel="$1"
-  shift
-  local dst_root="$DST_DIR/$rel"
+  local dst_root="$1"
+  local rel="$2"
+  shift 2
   local src_root="$SRC_DIR/$rel"
   local entry base keep
 
-  mkdir -p "$dst_root"
+  mkdir -p "$dst_root/$rel"
 
-  for entry in "$dst_root"/*; do
+  for entry in "$dst_root/$rel"/*; do
     [[ -e "$entry" ]] || continue
     base="$(basename "$entry")"
     keep=0
@@ -58,8 +61,8 @@ prune_unmanaged_children() {
     fi
 
     if [[ "$keep" -eq 0 ]]; then
-      backup_if_exists "$rel/$base"
-      rm -rf "$dst_root/$base"
+      backup_if_exists "$dst_root" "$rel/$base"
+      rm -rf "$dst_root/$rel/$base"
     fi
   done
 }
@@ -67,20 +70,20 @@ prune_unmanaged_children() {
 copy_managed_file "config.toml"
 copy_managed_file "AGENTS.md"
 
-prune_unmanaged_children "agents"
+prune_unmanaged_children "$DST_DIR" "agents"
 for file in "$SRC_DIR"/agents/*.toml; do
   rel="agents/$(basename "$file")"
   copy_managed_file "$rel"
 done
 
-prune_unmanaged_children "hooks"
+prune_unmanaged_children "$DST_DIR" "hooks"
 for file in "$SRC_DIR"/hooks/*.py; do
   rel="hooks/$(basename "$file")"
   copy_managed_file "$rel"
   chmod +x "$DST_DIR/$rel"
 done
 
-prune_unmanaged_children "bin"
+prune_unmanaged_children "$DST_DIR" "bin"
 for file in "$SRC_DIR"/bin/*; do
   [[ -f "$file" ]] || continue
   rel="bin/$(basename "$file")"
@@ -88,12 +91,21 @@ for file in "$SRC_DIR"/bin/*; do
   chmod +x "$DST_DIR/$rel"
 done
 
-prune_unmanaged_children "skills" ".system"
+# Migrate: clean up old ~/.codex/skills/ with backup
+if [[ -d "$DST_DIR/skills" ]]; then
+  echo "Migrating ~/.codex/skills/ → backup (now managed under ~/.agents/skills/)"
+  backup_if_exists "$DST_DIR" "skills"
+  rm -rf "$DST_DIR/skills"
+fi
+
+# Sync skills to ~/.agents/skills/
+prune_unmanaged_children "$AGENTS_DIR" "skills" ".system"
 for dir in "$SRC_DIR"/skills/*; do
   [[ -d "$dir" ]] || continue
   rel="skills/$(basename "$dir")"
-  copy_managed_dir "$rel"
+  copy_managed_dir "$AGENTS_DIR" "$rel"
 done
 
 echo "Published managed Codex config to $DST_DIR"
+echo "Skills synced to $AGENTS_DIR/skills/"
 echo "Backups stored at $BACKUP_DIR"

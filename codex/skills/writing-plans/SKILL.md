@@ -1,6 +1,6 @@
 ---
 name: writing-plans
-description: Use when you have requirements for a multi-step task and need a concrete implementation plan before editing code or config.
+description: Use when you have requirements for a multi-step task and need a concrete implementation plan before editing code or config. Also triggers after brainstorming design is approved for simple-to-medium tasks.
 ---
 
 # 写实施计划
@@ -13,6 +13,7 @@ description: Use when you have requirements for a multi-step task and need a con
 - 写清架构或实现路径
 - 每个任务标明涉及文件、验证方式、完成标准
 - 步骤粒度控制在几分钟到十几分钟
+- 明确标注哪些步骤彼此独立、可并行执行（标注 `[可并行]`）
 
 ## 好计划应包含
 

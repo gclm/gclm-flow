@@ -1,11 +1,11 @@
 ---
 name: testing
-description: Use when designing, writing, running, or reviewing automated tests, or when deciding what level of tests is needed for a code or config change.
+description: Use when designing, writing, running, or reviewing automated tests, deciding what level of tests is needed, or following TDD (test-driven development) for a feature, bugfix, or behavior change.
 ---
 
 # 测试
 
-这个 skill 负责测试策略、测试分层、测试执行和覆盖判断。它不替代 `test-driven-development`；TDD 负责“先写失败测试再写实现”，这里负责“该测什么、怎么测、测到什么程度”。
+这个 skill 负责测试策略、测试分层、测试执行和覆盖判断，也包含 TDD 模式。
 
 ## 核心规则
 
@@ -68,9 +68,20 @@ description: Use when designing, writing, running, or reviewing automated tests,
 - Rust：`rust-stack/references/testing.md`
 - Frontend：`frontend-stack/references/testing.md`
 
-## 联动技能
+## TDD 模式
 
-- `test-driven-development`
-- `systematic-debugging`
-- `verification-before-completion`
-- `code-review`
+先写失败测试，再写最小实现。
+
+**最小闭环：**
+1. 写一个能表达需求的失败测试。
+2. 运行它，确认失败原因正确。
+3. 写最少代码让它通过。
+4. 再跑测试，确认通过且无回归。
+5. 最后再重构。
+
+**适用：** bug 修复、新行为、回归风险高的改动。
+**不强推：** 纯文档、纯配置且没有测试入口、生成产物。
+
+**红线：**
+- 不要先写实现再补测试冒充 TDD
+- 不要跳过"先看失败"这一步

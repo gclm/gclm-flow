@@ -129,20 +129,3 @@ name = "stop-self-check"
 command = "python3 \"$HOME/.codex/hooks/stop_self_check.py\""
 timeout = 5
 
-[projects."/Users/gclm/Codes/ai/zeroclaw"]
-trust_level = "trusted"
-
-[projects."/Users/gclm/Codes/ai/CLIProxyAPI"]
-trust_level = "trusted"
-
-[projects."/Users/gclm/Codes/ai/LinJun"]
-trust_level = "trusted"
-
-[projects."/Users/gclm/Codes/ai/cc-switch"]
-trust_level = "trusted"
-
-[projects."/Users/gclm/Codes/ai/codex"]
-trust_level = "trusted"
-
-[projects."/Users/gclm/Codes/devops/gclm-flow"]
-trust_level = "trusted"

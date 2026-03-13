@@ -80,16 +80,29 @@ For sensitive paths, add an explicit review or self-check step.
 
 ## Multi-Agent Usage
 
-Use multiple agents only when there are independent subtasks with distinct deliverables.
+Use `spawn_team` when there are independent subtasks with distinct deliverables. Each member specifies `name`, `task`, and `agent_type`.
 
-Good fits:
-- planner for decomposition
-- investigator for context gathering
-- builder for implementation
-- reviewer for verification
-- recorder for low-frequency documentation or knowledge capture
+Agent types and their roles:
+- `planner` — 需求分析、任务拆解、执行计划
+- `investigator` — 代码调研、依赖分析、技术评估（只读）
+- `builder` — 代码实现、修改、重构
+- `reviewer` — 代码审查、验证、风险识别（只读）
+- `recorder` — 文档更新、决策沉淀
 
-Avoid parallelism when tasks share too much mutable state.
+Standard team patterns:
+- 并行调研：多个 investigator 同时探索不同模块或技术方向
+- 完整交付：planner 拆解 → builder(s) 并行实现 → reviewer 验收
+- 快速实现：investigator（调研）+ builder（实现）同时启动，builder 等调研结论后执行
+
+Default behavior: when a task has 2 or more independent subtasks, use `spawn_team` by default instead of executing them serially. Serial execution is the fallback, not the default.
+
+Trigger conditions:
+- 任务涉及 2 个以上独立模块或方向
+- 调研和实现可以部分并行
+- 需要独立的质量验收
+- 计划中有标注 `[可并行]` 的步骤
+
+Avoid parallelism when tasks share too much mutable state or have strict sequential dependencies.
 
 ## Reusable Knowledge
 
