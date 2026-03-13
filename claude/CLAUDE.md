@@ -125,9 +125,5 @@ Do not store secrets, tokens, or machine-specific sensitive data in reusable art
 
 ## Rules
 
-@~/.claude/rules/common/coding-style.md
-@~/.claude/rules/common/git-workflow.md
-@~/.claude/rules/common/security.md
-@~/.claude/rules/common/agents.md
-@~/.claude/rules/java/coding-style.md
-@~/.claude/rules/rust/coding-style.md
+Rules are loaded automatically from `~/.claude/rules/` by Claude Code.
+Stacks covered: common (all projects), golang, python, typescript, java, rust.
