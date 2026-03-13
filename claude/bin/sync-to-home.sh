@@ -47,7 +47,7 @@ if [ -d "$SRC/agents" ]; then
 fi
 
 # ECC skills/ -> ~/.claude/skills/ (selected from submodule)
-ECC_SKILLS="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/.agents/skills"
+ECC_SKILLS="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/skills"
 ECC_SKILL_LIST="eval-harness verification-loop"
 if [ -d "$ECC_SKILLS" ]; then
   mkdir -p "$DEST/skills"
