@@ -111,6 +111,16 @@ def main() -> None:
             reminders.append(
                 f"Domain knowledge check: this task touched {domain}. If you learned a reusable pattern or pitfall, consider updating-domain-skills before wrapping up."
             )
+    # Continuous learning: auto-prompt at session end when files changed
+    if files:
+        reminders.append(
+            "CONTINUOUS LEARNING CHECK: Review this session for reusable patterns before finishing. "
+            "Look for: (1) non-obvious fixes or workarounds, (2) repeated workflows worth turning into a skill, "
+            "(3) project conventions discovered, (4) tool combinations that worked well. "
+            "If anything is genuinely reusable, present 1-3 candidates and ask the user in Chinese: "
+            "'要把这些记录到 MEMORY.md 或 learned skill 吗？' "
+            "Skip this entirely if the session was trivial or only contained documentation edits."
+        )
     print(json.dumps({"additionalContext": " ".join(reminders)}))
 
 

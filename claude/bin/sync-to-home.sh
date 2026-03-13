@@ -46,9 +46,24 @@ if [ -d "$SRC/agents" ]; then
   done
 fi
 
+# ECC commands/ -> ~/.claude/commands/ (selected from submodule)
+ECC_COMMANDS="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/commands"
+ECC_COMMAND_LIST="learn.md skill-create.md evolve.md instinct-status.md"
+if [ -d "$ECC_COMMANDS" ]; then
+  mkdir -p "$DEST/commands"
+  for name in $ECC_COMMAND_LIST; do
+    if [ -f "$ECC_COMMANDS/$name" ]; then
+      cp "$ECC_COMMANDS/$name" "$DEST/commands/$name"
+      echo "  commands/$name (from ECC)"
+    fi
+  done
+else
+  echo "  [skip] ECC submodule not found for commands"
+fi
+
 # ECC skills/ -> ~/.claude/skills/ (selected from submodule)
 ECC_SKILLS="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/skills"
-ECC_SKILL_LIST="eval-harness verification-loop"
+ECC_SKILL_LIST="eval-harness verification-loop skill-stocktake"
 if [ -d "$ECC_SKILLS" ]; then
   mkdir -p "$DEST/skills"
   for name in $ECC_SKILL_LIST; do
