@@ -98,12 +98,16 @@ if [[ -d "$DST_DIR/skills" ]]; then
   rm -rf "$DST_DIR/skills"
 fi
 
-# Sync skills to ~/.agents/skills/
+# Sync skills to ~/.agents/skills/ (source: repo root skills/)
+SKILLS_SRC="$(cd "$SRC_DIR/.." && pwd)/skills"
 prune_unmanaged_children "$AGENTS_DIR" "skills" ".system"
-for dir in "$SRC_DIR"/skills/*; do
+for dir in "$SKILLS_SRC"/*; do
   [[ -d "$dir" ]] || continue
   rel="skills/$(basename "$dir")"
-  copy_managed_dir "$AGENTS_DIR" "$rel"
+  backup_if_exists "$AGENTS_DIR" "$rel"
+  rm -rf "$AGENTS_DIR/$rel"
+  mkdir -p "$AGENTS_DIR/skills"
+  cp -R "$dir" "$AGENTS_DIR/$rel"
 done
 
 echo "Published managed Codex config to $DST_DIR"
