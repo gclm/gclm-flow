@@ -117,9 +117,14 @@ def main() -> None:
             "CONTINUOUS LEARNING CHECK: Review this session for reusable patterns before finishing. "
             "Look for: (1) non-obvious fixes or workarounds, (2) repeated workflows worth turning into a skill, "
             "(3) project conventions discovered, (4) tool combinations that worked well. "
-            "If anything is genuinely reusable, present 1-3 candidates and ask the user in Chinese: "
-            "'要把这些记录到 MEMORY.md 或 learned skill 吗？' "
-            "Skip this entirely if the session was trivial or only contained documentation edits."
+            "If anything is genuinely reusable, present 1-3 numbered candidates in Chinese, each with a one-line summary. "
+            "For each candidate, offer these storage options as a numbered list: "
+            "1) 全局 MEMORY.md（跨项目通用模式、工具经验、用户偏好）"
+            "2) 项目记忆（当前项目特有的架构、约定、踩坑）"
+            "3) learned skill（可复用的操作流程，升级为 ~/.claude/skills/learned/）"
+            "4) 跳过（不值得记录）"
+            "Ask: '以上哪些值得记录？请告诉我编号和存放位置。' "
+            "Skip entirely if the session was trivial or only contained minor documentation edits."
         )
     print(json.dumps({"additionalContext": " ".join(reminders)}))
 
