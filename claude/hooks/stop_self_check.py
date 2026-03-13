@@ -111,20 +111,15 @@ def main() -> None:
             reminders.append(
                 f"Domain knowledge check: this task touched {domain}. If you learned a reusable pattern or pitfall, consider updating-domain-skills before wrapping up."
             )
-    # Continuous learning: auto-prompt at session end when files changed
+    # Continuous learning: surface high-value patterns for explicit recording
+    # (observe.sh captures all tool calls automatically; this prompt is for deliberate distillation)
     if files:
         reminders.append(
-            "CONTINUOUS LEARNING CHECK: Review this session for reusable patterns before finishing. "
-            "Look for: (1) non-obvious fixes or workarounds, (2) repeated workflows worth turning into a skill, "
-            "(3) project conventions discovered, (4) tool combinations that worked well. "
-            "If anything is genuinely reusable, present 1-3 numbered candidates in Chinese, each with a one-line summary. "
-            "For each candidate, offer these storage options as a numbered list: "
-            "1) 全局 MEMORY.md（跨项目通用模式、工具经验、用户偏好）"
-            "2) 项目记忆（当前项目特有的架构、约定、踩坑）"
-            "3) learned skill（可复用的操作流程，升级为 ~/.claude/skills/learned/）"
-            "4) 跳过（不值得记录）"
-            "Ask: '以上哪些值得记录？请告诉我编号和存放位置。' "
-            "Skip entirely if the session was trivial or only contained minor documentation edits."
+            "CONTINUOUS LEARNING CHECK: Before finishing, scan this session for patterns worth explicitly recording. "
+            "Only flag if genuinely reusable — non-obvious fixes, discovered conventions, or workflow insights. "
+            "If found, present 1-3 candidates in Chinese and ask: "
+            "'要记录到项目记忆（MEMORY.md）还是 learned skill（~/.claude/skills/learned/）？' "
+            "Skip if the session was trivial or behavior is already captured by existing skills/rules."
         )
     print(json.dumps({"additionalContext": " ".join(reminders)}))
 
