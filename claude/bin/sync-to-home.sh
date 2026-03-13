@@ -49,7 +49,7 @@ fi
 # rules/ -> ~/.claude/rules/
 # common + selected stacks from ECC submodule, java + rust from local rules/
 ECC_RULES="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/rules"
-LOCAL_RULES="$(cd "$SRC/.." && pwd)/rules"
+LOCAL_RULES="$SRC/rules"
 if [ -d "$ECC_RULES" ]; then
   mkdir -p "$DEST/rules"
   for stack in common golang python typescript; do
