@@ -46,6 +46,30 @@ if [ -d "$SRC/agents" ]; then
   done
 fi
 
+# rules/ -> ~/.claude/rules/
+# common + selected stacks from ECC submodule, java + rust from local rules/
+ECC_RULES="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/rules"
+LOCAL_RULES="$(cd "$SRC/.." && pwd)/rules"
+if [ -d "$ECC_RULES" ]; then
+  mkdir -p "$DEST/rules"
+  for stack in common golang python typescript; do
+    if [ -d "$ECC_RULES/$stack" ]; then
+      rm -rf "$DEST/rules/$stack"
+      cp -r "$ECC_RULES/$stack" "$DEST/rules/$stack"
+      echo "  rules/$stack (from ECC)"
+    fi
+  done
+else
+  echo "  [skip] vendor/everything-claude-code not found, run: git submodule update --init"
+fi
+for stack in java rust; do
+  if [ -d "$LOCAL_RULES/$stack" ]; then
+    rm -rf "$DEST/rules/$stack"
+    cp -r "$LOCAL_RULES/$stack" "$DEST/rules/$stack"
+    echo "  rules/$stack (local)"
+  fi
+done
+
 echo "Done."
 echo ""
 echo "Note: MCP servers are managed separately. Run:"

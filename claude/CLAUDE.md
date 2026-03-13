@@ -118,3 +118,10 @@ Do not store secrets, tokens, or machine-specific sensitive data in reusable art
 - Prefer self-explanatory code over heavy comments.
 - Keep outputs concise, but not vague.
 - Explain why when tradeoffs matter.
+
+## Rules
+
+@~/.claude/rules/common/coding-style.md
+@~/.claude/rules/common/git-workflow.md
+@~/.claude/rules/common/security.md
+@~/.claude/rules/common/agents.md
