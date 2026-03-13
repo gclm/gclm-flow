@@ -10,9 +10,10 @@ description: Use when working on deployment, CI/CD, containers, Kubernetes, Terr
 ## 核心规则
 
 - 先识别是构建、发布、容器、编排、基础设施还是运行时配置问题
-- 优先验证交付路径和回滚路径，而不是只看配置是否“写得像对”
+- 优先验证交付路径和回滚路径，而不是只看配置是否"写得像对"
 - 涉及镜像、架构、runner、权限、网络边界时，默认提高风险等级
 - 领域经验优先沉淀到 `references/`，不要把长示例继续堆回主文档
+- **GitHub Actions 日志调试：收到 Actions run URL 时，优先用 `gh run view --log-failed` 读取日志，不要用 chrome-devtools 或 exa**
 
 ## 常见场景
 
@@ -26,6 +27,7 @@ description: Use when working on deployment, CI/CD, containers, Kubernetes, Terr
 ## 参考资料
 
 - [github-actions-vm-image-ci.md](references/github-actions-vm-image-ci.md)
+- [github-actions-log-debugging.md](references/github-actions-log-debugging.md)
 - [deployment-checklist.md](references/deployment-checklist.md)
 - [service-routing-and-deployment-patterns.md](references/service-routing-and-deployment-patterns.md)
 
