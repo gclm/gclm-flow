@@ -29,6 +29,16 @@
           "timeout": 5
         }
       ]
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ~/.claude/skills/continuous-learning-v2/hooks/observe.sh pre",
+          "timeout": 10
+        }
+      ]
     }
   ],
   "PostToolUse": [
@@ -44,6 +54,16 @@
           "type": "command",
           "command": "python3 ~/.claude/hooks/post_tool_git_push_hint.py",
           "timeout": 5
+        }
+      ]
+    },
+    {
+      "matcher": "*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash ~/.claude/skills/continuous-learning-v2/hooks/observe.sh post",
+          "timeout": 10
         }
       ]
     }

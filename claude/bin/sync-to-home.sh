@@ -63,7 +63,7 @@ fi
 
 # ECC skills/ -> ~/.claude/skills/ (selected from submodule)
 ECC_SKILLS="$(cd "$SRC/.." && pwd)/vendor/everything-claude-code/skills"
-ECC_SKILL_LIST="eval-harness verification-loop skill-stocktake"
+ECC_SKILL_LIST="eval-harness verification-loop skill-stocktake continuous-learning-v2"
 if [ -d "$ECC_SKILLS" ]; then
   mkdir -p "$DEST/skills"
   for name in $ECC_SKILL_LIST; do
